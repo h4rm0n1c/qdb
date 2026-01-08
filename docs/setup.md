@@ -1,14 +1,12 @@
 # Setup Guide
 
-This guide documents a basic setup that matches the era of the original deployment (PHP 5.x with Apache and MySQL on Debian-like systems). It is intentionally minimal and focused on getting the legacy code running.
+This guide documents a basic setup for running the app on modern PHP with Apache and MySQL/MariaDB on Debian-like systems. It is intentionally minimal and focused on getting the legacy code running.
 
-## Requirements (legacy-accurate)
+## Requirements
 
-- PHP 5.x (the code uses the `mysql_*` extension which was removed in PHP 7).
-- Apache 2.x with mod_php (or PHP 5.x via CGI/FastCGI).
+- PHP 7.4+ with the `mysqli` extension enabled.
+- Apache 2.x with mod_php (or PHP via CGI/FastCGI).
 - MySQL 5.x (or compatible MariaDB).
-
-> If you are running a newer distro, use a PHP 5.x container or legacy package source. The code will not run on PHP 7+ without modernization.
 
 ## Configure Apache
 

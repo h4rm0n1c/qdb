@@ -33,10 +33,15 @@ class DbConnector {
 	
 		// Connect to the database
 		if(!isset(self::$link)) {
-			self::$link = mysql_connect($host, $user, $pass) or trigger_error("MySQL Connection failed: ".mysql_error());
+			self::$link = mysqli_connect($host, $user, $pass, $db);
+			if (!self::$link) {
+				trigger_error("MySQL Connection failed: " . mysqli_connect_error());
+			}
 		}
 		
-		mysql_select_db($db) or trigger_error(mysql_error());
+		if (!mysqli_select_db(self::$link, $db)) {
+			trigger_error(mysqli_error(self::$link));
+		}
 		return self::$instance;
 	}
 
@@ -48,10 +53,10 @@ class DbConnector {
 	//*** Function: query, Purpose: Execute a database query ***
 	public function query($query) {
 		$this->theQuery = $query;
-		$result = mysql_query($query, self::$link);
+		$result = mysqli_query(self::$link, $query);
 		
 		if($result === false) {
-			trigger_error("MySQL Query error: ".mysql_error());
+			trigger_error("MySQL Query error: " . mysqli_error(self::$link));
 		} else {
 			return $result;
 		}
@@ -62,19 +67,19 @@ class DbConnector {
 			case '%d': //Decimal Integer
 				return (int) array_shift($this->args);
 			case '%s': //String
-				if(get_magic_quotes_gpc()) {
+				if (function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc()) {
 					return array_shift($this->args);
 				}
-				return mysql_escape_string(array_shift($this->args));
+				return mysqli_real_escape_string(self::$link, array_shift($this->args));
 			case '%%': //%
 				return '%';
 			case '%f': //FLOAT
 				return (float) array_shift($this->args);
 			case '%b': //BLOB
-				if(get_magic_quotes_gpc()) {
+				if (function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc()) {
 					return array_shift($this->args);
 				}
-				return mysql_escape_string(array_shift($this->args));
+				return mysqli_real_escape_string(self::$link, array_shift($this->args));
 		}
 	}
 	
@@ -96,7 +101,7 @@ class DbConnector {
 	}
 	
 	public function getInsertId() {
-		return mysql_insert_id(self::$link);
+		return mysqli_insert_id(self::$link);
 	}
 	
 	//*** Function: getQuery, Purpose: Returns the last database query, for debugging ***
@@ -106,21 +111,21 @@ class DbConnector {
 	
 	//*** Function: getNumRows, Purpose: Return row count, MySQL version ***
 	public function getNumRows($result) {
-		return mysql_num_rows($result);
+		return mysqli_num_rows($result);
 	}
 	
 	//*** Function: fetchArray, Purpose: Get array of query results ***
 	public function fetchArray($result) {
-		return mysql_fetch_assoc($result);
+		return mysqli_fetch_assoc($result);
 	}
 	
 	public function fetchAssoc($result) {
-		return mysql_fetch_array($result);
+		return mysqli_fetch_array($result);
 	}
 	
 	//*** Function: __destroy, Purpose: Close the connection ***
 	public function __destroy() {
-		mysql_close(self::$link);
+		mysqli_close(self::$link);
 	}
 	
 }
