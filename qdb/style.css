@@ -1,0 +1,146 @@
+body {
+text-align: center;
+margin: 0;
+padding: 10px;
+}
+
+a {
+color: #3F7FFF;
+}
+
+#container {
+margin-left: auto;
+margin-right: auto;
+/*margin-top: 8px;*/
+width: 80%;
+background-color: #3F7FFF;
+}
+
+#bannerl {
+background-color: #3F7FFF;
+font-weight: bold;
+font-style: italic; 
+font-size: 20px;
+text-align: left;
+padding: 1px;
+height: 24px;
+padding-left: 3px;
+float: left;
+}
+
+#bannerr {
+font-family: "Arial", "Helvetica", "sans-serif";
+background-color: #3F7FFF;
+font-weight: bold;
+font-size: 18px;
+text-align: right;
+padding-right: 2px;
+padding-top: 2px;
+height: 24px;
+}
+
+#navlink {
+background-color: #f0f0f0;
+text-align: right;
+padding-right: 3px;
+padding-top: 2px;
+clear: both;
+font-family: arial, helvetica, sans-serif;
+color: #000000;
+font-size: smaller;
+height: 21px;
+}
+
+#content {
+text-align: left;
+padding-left: 3px;
+padding-top: 19px;
+padding-bottom: 19px;
+background-color: #ffffff;
+font-family: arial, helvetica, sans-serif;
+font-size: smaller;
+color: #000000;
+}
+
+#footer {
+/*background-color: #80a0ff;*/
+background-color: #3F7FFF;
+text-align: right;
+font-family: arial, helvetica, sans-serif;
+font-size: smaller;
+padding: 2px;
+padding-right: 3px;
+}
+
+#license {
+width: 80%;
+text-align: right;
+margin: 0 auto;
+font-family: "Arial", "Helvetica", "sans-serif";
+font-size: smaller;
+padding-right: 0;
+}
+
+.white {
+background-color:#FFFFFF;
+}
+
+.grey {
+background-color:#e8e8e8;
+}
+
+.quote {
+font-family: courier new, lucida console, fixed;
+font-size: 10pt;
+margin-bottom: 0px;
+margin-top: 0px;
+}
+
+.qt {
+font-family: courier new, lucida console, fixed;
+font-size: 10pt;
+margin-top: 0px;
+margin-bottom: 10px;
+}
+
+.qa {
+font-family: default;
+font-size: 8pt;
+text-decoration: none;
+}
+
+input.basicsubmit {
+background-color: #3F7FFF;
+border: 1px solid #000000;
+}
+
+.basicinput {
+border: 1px solid #000000;
+}
+
+textarea {
+width: 100%;
+padding: 1px;
+}
+
+blockquote {
+margin-left: 0;
+margin-top: 0;
+}
+
+fieldset {
+border: 1px solid #000000;
+}
+
+legend {
+font-weight: bold;
+}
+
+.news {
+margin-top: 0;
+}
+
+.news p {
+margin-left: 15px;
+margin-top:0;
+}

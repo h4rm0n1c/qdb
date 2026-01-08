@@ -1,0 +1,779 @@
+<?php
+/*
+File: common.php
+
+Description: This file contains all the commonly used functions for the qdb.
+
+Includes: Too damn many
+
+Version: 1.0
+
+Author: Harrison Mclean
+
+License: Creative Commons
+*/
+
+//Common functions
+
+//Execute supplied query and return HTMLised Quote(s)
+function format_quote($quote_sql) {
+	$return_string = '';
+	$result = db_connect_query($quote_sql);
+	$quote_result = 0;
+	
+	//Interpolating quote colour vars
+	$greys_counter = 0;
+	$div_id = "white";
+	
+	while ($row = mysql_fetch_array($result)) {
+		if ($greys_counter & 1) {
+				$div_id = "grey";
+		}
+		else {
+				$div_id = "white";
+		}
+		
+		$return_string .= '
+<div class="'.$div_id.'">
+<p class="quote">
+	<a href="?'.$row['id'].'" title="PermaLink"><b>#'.$row['id'].'</b></a> <a href="#" onclick="return rox('.$row['id'].');" class="qa">+</a>(<span id="score'.$row['id'].'">'.$row['rating'].'</span>)<a href="#" onclick="return sox('.$row['id'].');" class="qa">-</a> <a href="#" onclick="return sux('.$row['id'].');" class="qa">[X]</a>
+</p>
+<p class="qt">
+'.$row['quote'].'<br />';
+		if ($row['comment'] != "") {
+			$return_string .= '<i>Comment:</i> '.$row['comment']."<br />";
+		}
+$return_string .= '</p>
+</div>
+';
+		$quote_result = 1;
+		$greys_counter++;
+	}
+	
+	if ($quote_result == 1) {
+		return $return_string;
+	}
+	else {
+		return "";
+	}
+}
+
+//Returns true (1) when the supplied quote id is pending (Approved field is set to 0)
+function isquotepending($id) {
+	$result = db_connect_query("SELECT id FROM qdb WHERE approved = 0 AND id = ".$id);
+	while ($row = mysql_fetch_array($result)) {
+		return 1;
+	}
+	return 0;
+}
+
+
+//Returns the number of approved quotes (Approved field is set to 1)
+function count_approved() {
+	return mysql_result(db_connect_query("SELECT COUNT(id) FROM qdb WHERE approved = 1"),0);
+}
+
+//Returns the number of pending quotes (Approved field is set to 0)
+function count_pending() {
+	return mysql_result(db_connect_query("SELECT COUNT(id) FROM qdb WHERE approved = 0"),0);
+}
+
+//Returns the average score of approved quotes (karma)
+function count_karma() {
+	return mysql_result(db_connect_query("SELECT AVG(rating) FROM qdb WHERE approved = 1"),0);
+}
+
+//Returns a string containing a single html formatted quote if it is approved
+function single_quote() {
+	$quote_id = round($_SERVER['QUERY_STRING']);
+	$query = "SELECT * FROM qdb WHERE id = ".$quote_id;
+	if (!isquotepending($quote_id)) {
+		if (format_quote($query) == '') {
+			return '<b>The Specified Quote either does not exist or has been Rejected by the Moderators</b>';
+		}
+		else {
+			return format_quote($query);
+		}
+	}
+	else {
+		return "Quote <a href='./?$quote_id'>#".$quote_id."</a> is pending Moderation.";
+	}
+}
+
+//
+function navigation() {
+$nav = '
+	<a href="./?home">Home</a> | 
+	<a href="./?latest">Latest</a> | 
+	<a href="./?browse">Browse</a> | 
+	<a href="./?random">Random</a> <a href="./?random1">&gt;0</a> | 
+	<a href="./?top">Top 50</a><a href="./?top2">-100</a> | 
+	<a href="./?bottom">Bottom 50</a> | 
+	<a href="./?queue">Queue</a> | 
+	<a href="./?add"><b>Add Quote</b></a> | 
+	<a href="./?search">Search</a>';
+	
+	if(checklogin()) {
+		$nav = '<a href="./?admin">Admin</a> | ' . $nav . ' | <a href="./?logout">Logout</a>';
+	}
+	
+	return $nav;
+}
+
+
+//Returns the latest 50 approved quotes
+function latest() {
+$query = "SELECT * FROM qdb WHERE approved = 1 ORDER BY id DESC LIMIT 51";
+return format_quote($query);
+}
+
+function queue($pending) {
+	
+	$return_data = "<blockquote><tt>* <b>This is the submission queue, no it's not finished yet...</b></tt></blockquote><br />";
+	
+	if($pending > 0) {
+		$query = "SELECT * FROM `qdb` WHERE approved = 0 ORDER BY rand() ASC LIMIT 50;";
+		$return_data .= format_quote($query);
+	} else {
+		$return_data .= "No Pending Quotes Found";
+	}
+	
+	return $return_data;
+}
+
+//Returns a string containing the content (html) for the add quote page.
+function add() {
+/*return '<div align="left">
+       <form method="post" action="?added" onsubmit="return validateadd();">
+        <center>
+		<table border="0" cellpadding="2" cellspacing="0">
+		<tr><td colspan="2">
+		<textarea cols="98" rows="10" name="quote" class="basicinput" tabindex="1" id="quotetext"></textarea></center>
+		<tr><td><input type="submit" value="Add Quote" class="basicsubmit">&nbsp;<input type="reset" value="Reset" class="basicsubmit"></td>
+		<td align="right">Comment: <input type="text" size="40" maxlength="127" name="comment" class="basicinput" tabindex="2"></td>
+		</tr>
+		<tr><td colspan="2">&nbsp;</tr></td>
+		<tr><td colspan="2"><b>Tips for approval</b>: Keep it short, Trim any useless parts, avoid inside jokes, remove any trailing laughs.</tr></td>
+		</center>
+		</table>
+       </form>
+	</div>';*/
+	return "Sorry! Add Quote Functionality has been disabled, since this database is only meant to be added to by the bash dumper script!";
+}
+
+//Handles the data submitted by the add quote page
+function added() {
+	/*if (!isset($_COOKIE['add_quote'])) {
+		$qQUOTE = empty($_POST['quote']) ? die ("Error: Enter a Quote") : mysql_escape_string(nl2br(htmlentities(mquotes($_POST['quote']))));
+		$comment = mysql_escape_string(nl2br(htmlentities(mquotes($_POST['comment']))));
+		$sql = "INSERT INTO qdb (quote,rating,approved,comment) VALUES ('$qQUOTE',0,0,'$comment')";
+		$crap = db_connect_query($sql);
+
+		setcookie ("add_quote", "1",time()+(120));
+		header("Refresh: 4; URL=./");
+
+		return 'Thanks, your quote has been submitted. The quote you submitted was: <br /><br /><p class="qt">'.nl2br(htmlentities(mquotes($_POST['quote']))).'</p>Thank you.';
+	}
+	else {
+		header("Refresh: 3; URL=./");
+		return "Sorry, but you will have to wait 2 minutes at the most before you can submit again.";
+	}*/
+	return "Sorry! Add Quote Functionality has been disabled, since this database is only meant to be added to by the bash dumper script!";
+}
+
+//Returns 50 randomly selected, approved quotes
+//NOTE: Limited to one quote because of the CPU load truly randomised quotes create
+function random() {
+	$query = "SELECT * FROM `qdb` AS r1 JOIN (SELECT (RAND() * (SELECT MAX(id) FROM `qdb`)) AS rid) AS r2 WHERE r1.id >= r2.rid AND approved = 1 ORDER BY r1.id ASC LIMIT 1;";
+	
+	return format_quote($query);
+}
+
+//Returns 50 randomly selected, approved quotes with a score greater than zero
+//NOTE: Limited to one quote because of the CPU load truly randomised quotes create
+function random1($approved) {
+	$row = rand(0,($approved - 1));
+	$query  = "SELECT * FROM qdb AS r1 JOIN (SELECT (RAND() * (SELECT MAX(id) FROM qdb)) AS rid) AS r2 WHERE r1.id >= r2.rid AND approved = 1 AND rating > 0 ORDER BY r1.id ASC LIMIT 1;";
+	return format_quote($query);
+}
+
+//Returns the top 100 rated quotes (ordered by each quote's rating field)
+function top100() {
+	$query = "SELECT * FROM qdb WHERE approved = 1 AND rating >0 ORDER BY rating desc LIMIT 100";
+	return format_quote($query);
+}
+
+//Returns the top 50 rated quotes (ordered by each quote's rating field)
+function top50() {
+	$query = "SELECT * FROM qdb WHERE approved = 1 AND rating >0 ORDER BY rating desc LIMIT 50";
+	return format_quote($query);
+}
+
+//Returns the bottom 50 rated quotes (ordered by each quote's rating field)
+function bottom() {
+	$query = "SELECT * FROM qdb WHERE approved = 1 AND rating <1 ORDER BY rating asc LIMIT 50";
+	return format_quote($query);
+}
+
+
+//Returns the browse quotes page as a html formatted string
+function browse($approved) {
+	//Get the current browse page
+	$browsepage = @$_GET['p'];
+
+	//If no page was specified
+	if ($browsepage == '' || $browsepage == 0) {
+		if (@$_GET['browse'] != '') {
+			$browsepage = @$_GET['browse'];
+		}
+		else {
+			$browsepage = 1;
+		}
+	}
+
+	//Init a blank string, so I can just append any output to it.
+	$return_string = '';
+	
+	//Get all approved quotes, and tell me how many there are.
+	$rowcount = $approved;
+
+	//Calculate the number of pages
+	$pagecount = ceil($rowcount / 50);
+
+	//Init the string for storing the page links, I do this so I can put one at the top of the page
+	//and one at the bottom of the page.
+	$page_nav_string = '<!--Browse Page Navigation Start-->'."\n".'<center>'."\n".'<font class="qt">';
+
+	if ($browsepage != 1) {
+		$page_nav_string .= '<a href="./?browse&p=1" class="qa">Start</a> ';
+	}
+
+	if ($browsepage > 10) {
+		$page_nav_string .= '<a href="./?browse&p='.($browsepage - 10).'" class="qa">-10</a> ';
+	} 
+
+	if ($browsepage != 1) {
+		$page_nav_string .= '<a href="./?browse&p='.($browsepage - 1).'" class="qa">&lt;</a> ';
+	}
+
+	//Run a loop to generate all the page links
+	for ($i = 1; $i <= $pagecount; $i++) {
+		$padded = str_pad($i, 2, '0', STR_PAD_LEFT);
+		if ($i > $browsepage + 5 || $i < $browsepage - 5) {
+		}
+		else {
+			if ($i == $browsepage) {
+				$page_nav_string .= '<font class="qa">'.$padded.'</font>';
+			}
+			else {
+				$page_nav_string .= '<a href="./?browse&p='.$i.'" class="qa">'.$padded.'</a>';
+			}
+			if ($i != $pagecount && $i != $browsepage + 5) { 
+				$page_nav_string .= '-';
+			}
+		}
+	}
+	
+	if ($browsepage != $pagecount) {
+		$page_nav_string .= ' <a href="./?browse&p='.($browsepage + 1).'" class="qa">&gt;</a> ';
+	}
+	
+	if ($browsepage < $pagecount - 10) {
+		$page_nav_string .= '<a href="./?browse&p='.($browsepage + 10).'" class="qa">+10</a> ';
+	} 
+	
+	if ($browsepage != $pagecount) {
+		$page_nav_string .= '<a href="./?browse&p='.$pagecount.'" class="qa">End</a> ';
+	}
+	
+	//Finishing tags
+	$page_nav_string .= '</font>'."\n";
+
+	$page_dropdown = "";
+
+	//Page Select Drop Down List
+	$page_dropdown .='<form action="./?browse" name="page">'."\n".'Page: <select name="browse" onchange="javascript: document.page.submit()">'."\n";
+
+	//Loop to create list options
+	
+	for ($i = 1; $i <= $pagecount; $i++) {
+		if ($i == $browsepage) {
+			$page_dropdown .= '<option value="'.$i.'" selected>'.$i.'</option>'."\n";
+		}
+		else {
+			$page_dropdown .= '<option value="'.$i.'">'.$i.'</option>'."\n";
+		}
+	}
+
+	$page_dropdown .= '</select>'."\n".'</form>'."\n".'</center>'."\n".'<!--Browse Page Navigation End-->'."\n";
+
+	//Quote offset is the number of the requested page minus one, times the number of quotes per page.
+	$offset = ($browsepage - 1) * 50;
+
+	//Retrieve quotes based on quote offset
+	$return_string .= format_quote("SELECT * FROM qdb WHERE approved = 1 ORDER BY id asc LIMIT $offset,50");
+
+	//Dump it all back to the function that called me
+	return $page_nav_string.$page_dropdown.$return_string.$page_nav_string;
+}
+
+function buildOptions($optionArray, $selected = '') {
+	$return_string = "";
+	foreach($optionArray as $value => $title) {
+		if($selected != '' && $value == $selected) {
+			$return_string .= '<option value="'.$value.'" selected>'.$title.'</option>';
+		} else {
+			$return_string .= '<option value="'.$value.'">'.$title.'</option>';
+		}
+	}
+	return $return_string;
+}
+
+//Returns the search page as a html formatted string
+function search() {
+	$quote = (isset($_GET['search'])? $_GET['search'] : '');
+	$order = (isset($_GET['order'])? $_GET['order'] : 'rating');
+	$sort = (isset($_GET['sort'])? $_GET['sort'] : 'desc');
+	$number = (isset($_GET['show'])? $_GET['show'] : '25');
+	$approved = (isset($_GET['approved'])? $_GET['approved'] : '1');
+		
+	$orderopts = array('rating' => 'Score', 'id' => 'Number');
+	$sortopts = array('asc' => 'Ascending', 'desc' => 'Descending');
+	$numberopts = array('10' => 10, '25' => 25, '50' => 50, '75' => 75, '100' => 100);
+	$approveopts = array('1' => 'Approved', '0' => 'All');
+	
+	$return_string = "";
+	$quote_string = "";
+
+	$return_string .= '
+	<center>
+		<form method="get" action="./?search">
+			<table cellpadding="2" cellspacing="0">
+				<tr>
+					<td align="right">
+						Keywords:
+					</td>
+					<td>
+						<input type="text" name="search" size="28" class="basicinput" value="'.htmlentities($quote).'">
+					</td>
+					<td valign="top">
+						<input type="submit" class="basicsubmit" value="Search">
+					</td>
+				</tr>
+				<tr>
+					<td align="right">
+						Sort by:
+					</td>
+					<td colspan="2">
+						<select name="order" size="1">
+							'.buildOptions($orderopts, $order).'
+						</select>
+						<select name="sort" size="1">
+							'.buildOptions($sortopts, $sort).'
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<td align="right">
+						Display:
+					</td>
+					<td colspan="2">
+						<select name="show" size="1">
+							'.buildOptions($numberopts, $number).'
+						</select>
+						<select name="approved" size="1">
+							'.buildOptions($approveopts, $approved).'
+						</select>
+					</td>
+				</tr>
+			</table>
+		</form>
+	</center>
+';
+
+	if ($quote != '') {
+		$quote = mysql_escape_string(mquotes($quote));
+		if ($order == '' || $order != 'rating' && $order != 'id') {
+			$order = "rating";
+		}
+		if ($sort == '' && $sort != "desc" && $sort != "asc") {
+			$sort = 'desc';
+		}
+		if ($number  == '' || $number < 10 || $number > 100) {
+			$number = 25;
+		}
+		if ($approved == 1 || $approved == '') {
+			$approved = " AND approved = 1";
+		}
+		else if ($approved == 0) {
+			$approved = "";
+		}
+		$sql = "SELECT * FROM qdb WHERE MATCH (`quote`) AGAINST ('".$quote."' IN BOOLEAN MODE)".$approved." ORDER BY `".$order."` ".$sort." ,MATCH (`quote`) AGAINST('".$quote."' IN BOOLEAN MODE) DESC LIMIT " . $number;
+
+		$quote_string = format_quote($sql);
+	}
+	
+	if($quote_string == "" && $quote != '') {
+		$return_string .= "<b>Search found nothing</b>";
+	} else {
+		$return_string .= $quote_string;
+	}
+	
+	return $return_string;
+}
+
+
+
+//Returns the homepage as a html formatted string
+function index() {
+$return_string = "
+<style type='text/css'>#content {padding-left: 0px; padding-top: 16px;}</style>
+<table cellpadding='0' cellspacing='3' style='line-height: 21px;' border='0'>
+	<tr>
+		<td width='50%' valign='top'>
+			This is the AjaxQDB quote management system.<br />
+			AjaxQDB has features comparable to those of bash.org, maybe even better.<br />
+			At the moment it is still in development and will be so until I decide to get of my ass and do somthing with it.
+			<hr />
+			<ul style='list-style-type: square;'>
+				<li><a href='http://qdb.us'>Qdb.us Quote Database</a></li>
+				<li><a href='http://bash.org'>Bash.org Quote Database</a></li>
+				<li><a href='http://www.gardenvarietygeek.com'>Garden Variety Geek</a></li>
+			</ul>
+		</td>
+		<td WIDTH='1' BGCOLOR='#3F7FFF' rowspan='2'>
+			<FONT SIZE='1' COLOR='#3F7FFF'>|</FONT>
+		</td>
+		<td width='50%' valign='top'>
+			".news()."
+		</td>
+	</tr>
+	<tr>
+		<td></td>
+		<td>".listadmins()."</td>
+	</tr>
+</table>";
+return $return_string;
+}
+
+//Returns the admin login page as a html formatted string
+function admin() {
+	global $navigation;
+	$login = <<<EOF
+<center>
+	<form method="post" action="?admin">
+	User Name: <input type="text" name="username" size="15" class="basicinput"><br />
+	<p>
+	Password:&nbsp;&nbsp; <input type="password" name="password" size="15" class="basicinput"><br />
+	</p>
+	<input type="submit" name="login" class="basicsubmit" value="Login">
+	</form>
+</center>
+EOF;
+	if(Sentinel::isLoggedIn()) {
+		return adminpanel();
+	} else if(isset($_POST['login'])) {
+		if($GLOBALS['sentinel']->authenticate($_POST['username'], $_POST['password'])) {
+			return adminpanel();
+		} else {
+			return $login;
+		}
+	} else {
+		return $login;
+	}
+}
+
+//Assembles the admin panel from different functions and returns the output as a html formatted string
+function adminpanel() {
+	global $navigation;
+	$links = '<a href="./?home">Home</a> | ';
+	$return_string = "";
+	
+	if(issuperadmin()) {
+		$links .= '<a href="#adduser">Add User</a> | ';
+		$return_string .= admin_adduser();
+	}
+	$links .= '<a href="#changepass">Change Password</a> | <a href="#news">News</a> | <a href="#pending">Pending Quotes</a> | <a href="#flagged">Flagged Quotes</a>';
+	$return_string .= admin_changepass();
+	$return_string .= admin_news();
+	$return_string .= admin_pending();
+	$return_string .= admin_flagged();
+	
+	$links .= ' | <a href="./?logout">Logout</a>';
+	$navigation = $links;
+	return $return_string;
+}
+
+//Returns the moderator "panel" for moderating pending quotes, moderators can either approve or deny a quote
+function admin_pending() {
+	$return_string = '<br />
+		<fieldset id="pending">
+		<legend>Pending Quotes <a href="#top" >[Top]</a></legend>
+		<div style="max-height: 400px; overflow: auto; border: 1px solid #000000; margin-bottom: 10px; padding: 5px;">
+	';
+	$adminid = $_SESSION['userid'];
+	$result = db_connect_query("SELECT * FROM qdb WHERE approved = 0 "); //AND modid = '$adminid'
+	
+	while ( $row = mysql_fetch_array($result) ) {
+		$return_string .= '<div id="pending_'.$row['id'].'" class="pending"><p class="quote"><b>#'.$row['id'].'</b>&nbsp;('.$row['rating'].')&nbsp;<a href="#" onclick="return approve('.$row['id'].');" class="qa">[Approve]</a>&nbsp;<a href="#" onclick="return reject('.$row['id'].');" class="qa">[Reject]</a>';
+		$return_string .= "<p class='qt'>".$row["quote"]."</p></div>";
+	}
+
+	$return_string .= '</div>';
+	$return_string .= '</fieldset>';
+
+	return $return_string;
+}
+
+//Returns the moderator "panel" for moderating quotes flagged for review, moderators can unflag or kill the quote
+function admin_flagged() {
+
+	$return_string = '<br />
+	<fieldset id="flagged">
+		<legend>Flagged Quotes <a href="#top" >[Top]</a></legend>
+		<div style="max-height: 400px; overflow: auto; border: 1px solid #000000; padding: 5px;">
+	';
+
+	$adminid = $_SESSION['userid'];
+	$result = db_connect_query("SELECT * FROM qdb WHERE flagged = 1 and approved = 1 AND modid = '$adminid'");
+
+	while ( $row = mysql_fetch_array($result) ) {
+		$return_string .= '<div id="flagged_'.$row['id'].'" class="flagged"><p class="quote"><b>#'.$row['id'].'</b>&nbsp;<a href="#" onclick="return kill('.$row['id'].');" class="qa">[Kill]</a>'."\n".'<a href="#" onclick="return unflag('.$row['id'].');" class="qa">[UnFlag]</a>'."\n".'</p>';
+		$return_string .= '<p class="qt">'.$row["quote"].'</p></div>';
+	}
+
+	$return_string .= '</div></fieldset>';
+
+	return $return_string;
+}
+
+//Returns the moderator "panel" to allow a moderator to change their password
+function admin_changepass() {
+	$return_string = '<br /><fieldset id="changepass"><legend>Change Password <a href="#top" >[Top]</a></legend><table width="100%" cellpadding="0"><tr><td><form action="./?changepass" method="post"><table align="left"><tr><td align="right">New password: <input type="password" name="pass" size="28" class="basicinput"></td></tr><tr><td align="right">Repeat Password: <input type="password" name="passchk" size="28" class="basicinput"></td></tr><tr><td align="right"><input type="submit" name="submit" class="basicsubmit" value="Change Password"></td></tr></table></form></td></tr></table>';
+	$return_string .= '<p>When you have changed your password, you will be automatically logged out, then just log back in with your new password.<br />
+	Passwords must be between 6 and 20 characters long and can only be alphanumeric, in uppercase and/or lowercase (0-9 A-Z a-z)</p></fieldset>';
+	return $return_string;
+}
+
+//Does the actual password changing for admin_changepass()
+function changepass() {
+
+	
+	if (checklogin()) {
+		$username = $_SESSION['username'];
+		$pass = $_POST['pass'];
+		$passchk = $_POST['passchk'];
+		if ($pass == $passchk) {
+			//if the password is not alphanumeric, is made of spaces or is not between 6 and 20 characters in length, error out
+			if (preg_match("/^[a-zA-Z0-9]+$/",$pass)&&!trim($pass)==''&&!(strlen($pass)<6||strlen($pass)>20)) {
+				$pass = mysql_real_escape_string(md5($pass));
+				$sql = "UPDATE qdbusers SET password = '".$pass."' WHERE username = '".$username."' LIMIT 1;";
+				db_connect_query($sql);
+				setcookie("hqdb", "", time()-100);
+				header("Location: ./?admin");
+			}
+			else {
+				header('Refresh: 3;URL=./?admin');
+				$return_string = '<b>Error</b>: Password is invalid, please specify a valid password.';
+				return $return_string;
+			}		
+		}
+		else {
+		header('Refresh: 3;URL=./?admin');
+		$return_string = '<b>Error</b>: Passwords entered do not match each-other';
+		return $return_string;
+		}
+	}
+	else
+	{
+		header('Refresh: 0;URL=./');
+		return "Stop trying to hack, you suck.";
+	}
+}
+
+//Returns the admin "panel" that allows an administrator to add new moderators or administrators
+function admin_adduser() {
+	$return_string = '
+		<fieldset id="adduser">
+			<legend>Add User <a href="#top" >[Top]</a></legend>
+			<table width="100%" cellpadding="0">
+				<tr>
+					<td>
+						<form action="./?adduser" method="post">
+							<table align="left">
+								<tr>
+									<td align="right">
+										Username: <input type="text" name="newuser" size="28" class="basicinput">
+									</td>
+								</tr>
+								<tr>
+									<td align="right">
+										Email: <input type="text" name="email" size="28" class="basicinput">
+									</td>
+								</tr>
+								<tr>
+									<td align="right">
+										Is Admin: <select name="isadmin"><option value="0">No</option><option value="1">Yes</option></select>
+									</td>
+								</tr>
+								<tr>
+									<td align="right">
+										<input type="submit" name="submit" class="basicsubmit" value="Add User">
+									</td>
+								</tr>
+							</table>
+						</form>
+					</td>
+				</tr>
+			</table>
+		</fieldset>';
+	return $return_string;
+
+}
+
+//The actual function that does the user adding for admin_adduser()
+function adduser() {
+	$nUSER = $_POST['newuser'];
+	$nPASSWORD = 'password';
+	$nEMAIL = $_POST['email'];
+	$nISADMIN = $_POST['isadmin'];
+	if(checklogin()){
+		if(issuperadmin()) {
+			if(empty($_POST['newuser'])){
+				header('Refresh: 3;URL=./?admin');
+				return '<b>Error</b>: No Username Set';
+			}
+			elseif(empty($_POST['email'])){
+				header('Refresh: 3;URL=./?admin');
+				return '<b>Error</b>: No Email Set';
+			}
+			else{
+				Sentinel::$user->addUser($nUSER, $nPASSWORD, $nEMAIL, $nISADMIN);
+				header('Refresh: 3;URL=./?admin');
+				return 'Username: '.$nUSER.' Was added sucessfully';
+			}
+		}
+	}
+}
+
+//List the administrators and the moderators (the administrator has a userid of 1, same thing as the "super-admin")
+//Moderators are users that do not have a userid of 1
+//This function is used on the home page under the news column
+function listadmins() {
+	$return_string = "<table valign='bottom'><tr><td>";
+	$admin = db_connect_query("SELECT email, username FROM qdbusers WHERE isadmin = 1");
+	if(mysql_num_rows($admin) > 0) {
+		$return_string .= "Administrators: ";
+		
+		while ($row = mysql_fetch_array($admin)) {
+			$return_string .= '<a href="mailto:'.$row['email'].'">'.$row['username'].'</a> ';
+		}
+		$return_string .= '<br />';
+	}
+	mysql_free_result($admin);
+
+	$mods = db_connect_query("SELECT email, username FROM qdbusers WHERE isadmin != 1");
+	if(mysql_num_rows($mods) > 0) {
+		$return_string .= "Moderators: ";
+	
+		while ($row = mysql_fetch_array($mods)) {
+			$return_string .= '<a href="mailto:'.$row['email'].'">'.$row['username'].'</a>';
+		}
+		$return_string .= '<br />';
+	}
+	mysql_free_result($mods);
+
+	$return_string .= '</td></tr></table>';
+	
+	return $return_string;
+}
+
+//Returns the latest 3 news posts as a html formatted string
+function news() {
+	$return_string = "";
+	$sql = "SELECT qdbnews.postdate, qdbnews.post, qdbusers.username FROM qdbnews, qdbusers WHERE (qdbnews.userid = qdbusers.userid) ORDER BY postid DESC LIMIT 3";
+	$result = db_connect_query($sql);
+	while ($row = mysql_fetch_array($result)) {
+		$return_string .= '<div class="news">';
+		$postdate = explode('-', $row['postdate']);
+		
+		$return_string .= '<b>'.$postdate[2].'-'.$postdate[1].'-'.$postdate[0].'</b> By: '.$row['username'].'<br /><p>'.$row['post'].'</p></div>';
+	}
+	mysql_free_result($result);
+
+	return $return_string;
+}
+
+//Admin panel for news section, admins can submit and edit news posts
+function admin_news() {
+	if (checklogin()) {
+		$return_string = "";
+
+		if(isset($_POST['post_new']) && $_POST['content'] != '') {
+			$postid = @$_POST['selnews'];
+			$owner = @$_SESSION['userid'];
+			$time = date("Y\-m\-d");
+			$post = mysql_escape_string(nl2br(mquotes($_POST['content'])));
+			db_connect_query("INSERT INTO qdbnews (postdate,post,userid) VALUES ('$time','$post','$owner');");
+		}
+		else if(isset($_POST['post_edit'])) {
+			$postid = @$_POST['selnews'];
+			$time = date("Y\-m\-d");
+			$post = mysql_escape_string(nl2br(mquotes($_POST['content'])));
+			db_connect_query("UPDATE qdbnews SET post = '".$post."' WHERE postid ='".$postid."';");
+		}
+	}
+
+	$return_string = "<br /><fieldset id='news'><legend>News <a href='#top' >[Top]</a></legend><form name='news' action='./?admin' method='post'><select name='selnews' onchange='javascript: document.news.submit()'>";
+
+	$result = db_connect_query("SELECT * FROM qdbnews");
+
+	while ($row = mysql_fetch_array($result)) {
+		if (isset($_POST['selnews'])) {
+			if (@$_POST['selnews'] == $row['postid']) {
+				$return_string .= '<option value="'.$row['postid'].'" selected>#'.$row['postid'].' '.$row['postdate'].'</option>';
+				$newscontent = $row['post'];
+			}
+			else {
+				$return_string .= '<option value="'.$row['postid'].'">#'.$row['postid'].' '.$row['postdate'].'</option>';
+			}
+		}
+		else {
+				$return_string .= '<option value="'.$row['postid'].'">#'.$row['postid'].' '.$row['postdate'].'</option>';
+		}
+	}
+
+	$return_string .= "</select><br />";
+
+	if (isset($newscontent)) {
+		$return_string .= '<textarea wrap="virtual" name="content" cols="80" rows="10" class="basicinput">'.str_replace("<br />","\n",$newscontent).'</textarea><br /><br /><input type="submit" name="post_edit" value="Edit Post" class="basicsubmit" /> ';
+	}
+	else {
+		$return_string .= '<textarea wrap="virtual" name="content" cols="80" rows="10" class="basicinput"></textarea><br /><br />';
+	}
+
+	$return_string .= '<input type="submit" name="update" value="Select" class="basicsubmit" /> <input type="submit" name="post_new" value="Post New" class="basicsubmit" />';
+
+	$return_string .= "</form></fieldset>";
+	return $return_string;
+}
+
+//match string to query string
+function qs_match($string) {
+	if(substr($_SERVER['QUERY_STRING'], 0, strlen($string)) == $string) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+function mquotes($tostrip) {
+	if (get_magic_quotes_gpc()) {
+		return stripslashes($tostrip);
+	}
+	else {
+		return $tostrip;
+	}
+}
+?>
