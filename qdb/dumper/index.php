@@ -40,7 +40,9 @@ function db_con_query($sql) {
 function addquote($id, $quote, $score) {
 	//$mod_id = mysql_result(db_con_query("SELECT userid FROM qdbusers ORDER BY rand() LIMIT 1"),0);
 	$mod_id = 1;
-	$sql = "INSERT INTO qdb (id, quote, rating, approved, modid) VALUES ('$id','".mysql_escape_string($quote)."','$score','1', '$mod_id')";
+	DbConnector::getInstance();
+	$escaped_quote = mysqli_real_escape_string(DbConnector::$link, $quote);
+	$sql = "INSERT INTO qdb (id, quote, rating, approved, modid) VALUES ('$id','".$escaped_quote."','$score','1', '$mod_id')";
 	db_con_query($sql);
 }
 
@@ -96,7 +98,7 @@ $res = db_con_query("SELECT id FROM qdb");
 
 $id_array = array();
 
-while ($exist_id = mysql_fetch_array($res)) {
+while ($exist_id = mysqli_fetch_array($res, MYSQLI_NUM)) {
 	$id_array[] = $exist_id[0];
 }
 
