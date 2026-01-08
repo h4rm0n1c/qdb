@@ -1,0 +1,40 @@
+CREATE TABLE qdb (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  quote TEXT NOT NULL,
+  rating INT NOT NULL DEFAULT 0,
+  approved TINYINT(1) NOT NULL DEFAULT 0,
+  modid INT UNSIGNED DEFAULT 0,
+  comment VARCHAR(255) DEFAULT '',
+  flagged TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  FULLTEXT KEY quote_fulltext (quote)
+) ENGINE=MyISAM;
+
+CREATE TABLE qdbusers (
+  userid INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  username VARCHAR(64) NOT NULL,
+  `password` CHAR(32) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  isadmin TINYINT(1) NOT NULL DEFAULT 0,
+  enabled TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (userid),
+  UNIQUE KEY qdbusers_username_uq (username)
+) ENGINE=MyISAM;
+
+CREATE TABLE qdbnews (
+  postid INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  postdate DATE NOT NULL,
+  post TEXT NOT NULL,
+  userid INT UNSIGNED NOT NULL,
+  PRIMARY KEY (postid),
+  KEY qdbnews_userid_idx (userid)
+) ENGINE=MyISAM;
+
+CREATE TABLE votes (
+  vid INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  ip VARCHAR(45) NOT NULL,
+  qid INT UNSIGNED NOT NULL,
+  PRIMARY KEY (vid),
+  KEY votes_qid_idx (qid),
+  KEY votes_ip_idx (ip)
+) ENGINE=MyISAM;
