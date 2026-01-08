@@ -14,6 +14,10 @@ License: Creative Commons
 */
 
 //Common functions
+function db_escape($value) {
+	DbConnector::getInstance();
+	return mysqli_real_escape_string(DbConnector::$link, $value);
+}
 
 //Execute supplied query and return HTMLised Quote(s)
 function format_quote($quote_sql) {
@@ -25,7 +29,7 @@ function format_quote($quote_sql) {
 	$greys_counter = 0;
 	$div_id = "white";
 	
-	while ($row = mysql_fetch_array($result)) {
+	while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
 		if ($greys_counter & 1) {
 				$div_id = "grey";
 		}
@@ -61,7 +65,7 @@ $return_string .= '</p>
 //Returns true (1) when the supplied quote id is pending (Approved field is set to 0)
 function isquotepending($id) {
 	$result = db_connect_query("SELECT id FROM qdb WHERE approved = 0 AND id = ".$id);
-	while ($row = mysql_fetch_array($result)) {
+	while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
 		return 1;
 	}
 	return 0;
@@ -70,17 +74,23 @@ function isquotepending($id) {
 
 //Returns the number of approved quotes (Approved field is set to 1)
 function count_approved() {
-	return mysql_result(db_connect_query("SELECT COUNT(id) FROM qdb WHERE approved = 1"),0);
+	$result = db_connect_query("SELECT COUNT(id) AS count FROM qdb WHERE approved = 1");
+	$row = mysqli_fetch_assoc($result);
+	return $row['count'];
 }
 
 //Returns the number of pending quotes (Approved field is set to 0)
 function count_pending() {
-	return mysql_result(db_connect_query("SELECT COUNT(id) FROM qdb WHERE approved = 0"),0);
+	$result = db_connect_query("SELECT COUNT(id) AS count FROM qdb WHERE approved = 0");
+	$row = mysqli_fetch_assoc($result);
+	return $row['count'];
 }
 
 //Returns the average score of approved quotes (karma)
 function count_karma() {
-	return mysql_result(db_connect_query("SELECT AVG(rating) FROM qdb WHERE approved = 1"),0);
+	$result = db_connect_query("SELECT AVG(rating) AS avg_rating FROM qdb WHERE approved = 1");
+	$row = mysqli_fetch_assoc($result);
+	return $row['avg_rating'];
 }
 
 //Returns a string containing a single html formatted quote if it is approved
@@ -392,7 +402,7 @@ function search() {
 ';
 
 	if ($quote != '') {
-		$quote = mysql_escape_string(mquotes($quote));
+		$quote = db_escape(mquotes($quote));
 		if ($order == '' || $order != 'rating' && $order != 'id') {
 			$order = "rating";
 		}
@@ -514,7 +524,7 @@ function admin_pending() {
 	$adminid = $_SESSION['userid'];
 	$result = db_connect_query("SELECT * FROM qdb WHERE approved = 0 "); //AND modid = '$adminid'
 	
-	while ( $row = mysql_fetch_array($result) ) {
+	while ( $row = mysqli_fetch_array($result, MYSQLI_ASSOC) ) {
 		$return_string .= '<div id="pending_'.$row['id'].'" class="pending"><p class="quote"><b>#'.$row['id'].'</b>&nbsp;('.$row['rating'].')&nbsp;<a href="#" onclick="return approve('.$row['id'].');" class="qa">[Approve]</a>&nbsp;<a href="#" onclick="return reject('.$row['id'].');" class="qa">[Reject]</a>';
 		$return_string .= "<p class='qt'>".$row["quote"]."</p></div>";
 	}
@@ -537,7 +547,7 @@ function admin_flagged() {
 	$adminid = $_SESSION['userid'];
 	$result = db_connect_query("SELECT * FROM qdb WHERE flagged = 1 and approved = 1 AND modid = '$adminid'");
 
-	while ( $row = mysql_fetch_array($result) ) {
+	while ( $row = mysqli_fetch_array($result, MYSQLI_ASSOC) ) {
 		$return_string .= '<div id="flagged_'.$row['id'].'" class="flagged"><p class="quote"><b>#'.$row['id'].'</b>&nbsp;<a href="#" onclick="return kill('.$row['id'].');" class="qa">[Kill]</a>'."\n".'<a href="#" onclick="return unflag('.$row['id'].');" class="qa">[UnFlag]</a>'."\n".'</p>';
 		$return_string .= '<p class="qt">'.$row["quote"].'</p></div>';
 	}
@@ -566,7 +576,7 @@ function changepass() {
 		if ($pass == $passchk) {
 			//if the password is not alphanumeric, is made of spaces or is not between 6 and 20 characters in length, error out
 			if (preg_match("/^[a-zA-Z0-9]+$/",$pass)&&!trim($pass)==''&&!(strlen($pass)<6||strlen($pass)>20)) {
-				$pass = mysql_real_escape_string(md5($pass));
+				$pass = db_escape(md5($pass));
 				$sql = "UPDATE qdbusers SET password = '".$pass."' WHERE username = '".$username."' LIMIT 1;";
 				db_connect_query($sql);
 				setcookie("hqdb", "", time()-100);
@@ -662,26 +672,26 @@ function adduser() {
 function listadmins() {
 	$return_string = "<table valign='bottom'><tr><td>";
 	$admin = db_connect_query("SELECT email, username FROM qdbusers WHERE isadmin = 1");
-	if(mysql_num_rows($admin) > 0) {
+	if(mysqli_num_rows($admin) > 0) {
 		$return_string .= "Administrators: ";
 		
-		while ($row = mysql_fetch_array($admin)) {
+		while ($row = mysqli_fetch_array($admin, MYSQLI_ASSOC)) {
 			$return_string .= '<a href="mailto:'.$row['email'].'">'.$row['username'].'</a> ';
 		}
 		$return_string .= '<br />';
 	}
-	mysql_free_result($admin);
+	mysqli_free_result($admin);
 
 	$mods = db_connect_query("SELECT email, username FROM qdbusers WHERE isadmin != 1");
-	if(mysql_num_rows($mods) > 0) {
+	if(mysqli_num_rows($mods) > 0) {
 		$return_string .= "Moderators: ";
 	
-		while ($row = mysql_fetch_array($mods)) {
+		while ($row = mysqli_fetch_array($mods, MYSQLI_ASSOC)) {
 			$return_string .= '<a href="mailto:'.$row['email'].'">'.$row['username'].'</a>';
 		}
 		$return_string .= '<br />';
 	}
-	mysql_free_result($mods);
+	mysqli_free_result($mods);
 
 	$return_string .= '</td></tr></table>';
 	
@@ -693,13 +703,13 @@ function news() {
 	$return_string = "";
 	$sql = "SELECT qdbnews.postdate, qdbnews.post, qdbusers.username FROM qdbnews, qdbusers WHERE (qdbnews.userid = qdbusers.userid) ORDER BY postid DESC LIMIT 3";
 	$result = db_connect_query($sql);
-	while ($row = mysql_fetch_array($result)) {
+	while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
 		$return_string .= '<div class="news">';
 		$postdate = explode('-', $row['postdate']);
 		
 		$return_string .= '<b>'.$postdate[2].'-'.$postdate[1].'-'.$postdate[0].'</b> By: '.$row['username'].'<br /><p>'.$row['post'].'</p></div>';
 	}
-	mysql_free_result($result);
+	mysqli_free_result($result);
 
 	return $return_string;
 }
@@ -713,13 +723,13 @@ function admin_news() {
 			$postid = @$_POST['selnews'];
 			$owner = @$_SESSION['userid'];
 			$time = date("Y\-m\-d");
-			$post = mysql_escape_string(nl2br(mquotes($_POST['content'])));
+			$post = db_escape(nl2br(mquotes($_POST['content'])));
 			db_connect_query("INSERT INTO qdbnews (postdate,post,userid) VALUES ('$time','$post','$owner');");
 		}
 		else if(isset($_POST['post_edit'])) {
 			$postid = @$_POST['selnews'];
 			$time = date("Y\-m\-d");
-			$post = mysql_escape_string(nl2br(mquotes($_POST['content'])));
+			$post = db_escape(nl2br(mquotes($_POST['content'])));
 			db_connect_query("UPDATE qdbnews SET post = '".$post."' WHERE postid ='".$postid."';");
 		}
 	}
@@ -728,7 +738,7 @@ function admin_news() {
 
 	$result = db_connect_query("SELECT * FROM qdbnews");
 
-	while ($row = mysql_fetch_array($result)) {
+	while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
 		if (isset($_POST['selnews'])) {
 			if (@$_POST['selnews'] == $row['postid']) {
 				$return_string .= '<option value="'.$row['postid'].'" selected>#'.$row['postid'].' '.$row['postdate'].'</option>';

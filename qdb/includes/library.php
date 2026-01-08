@@ -27,7 +27,7 @@ function count_vote($qID, $type) {
 	$ip = $_SERVER['REMOTE_ADDR'];
 	$voted = false;
 	$result = db_connect_query("SELECT * FROM votes WHERE ip = '$ip' AND qid = '$qID' ORDER BY vid");
-	while($row = mysql_fetch_array($result)) {
+	while($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
 		$voted = true;
 	}
 	if ($voted != true) {
@@ -43,7 +43,9 @@ function count_vote($qID, $type) {
 		db_connect_query($sql);
 		
 		$sql = "SELECT rating FROM qdb WHERE id =".$qID;
-		return mysql_result(db_connect_query($sql), 0, 'rating');
+		$result = db_connect_query($sql);
+		$row = mysqli_fetch_assoc($result);
+		return $row['rating'];
 	}
 	else {
 		return 'false';
