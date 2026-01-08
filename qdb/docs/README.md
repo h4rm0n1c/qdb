@@ -5,3 +5,4 @@ This directory contains working documentation for restoring and operating the ba
 ## Contents
 
 - [Database setup](database.md)
+- [Server setup](setup.md)
