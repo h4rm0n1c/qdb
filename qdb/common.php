@@ -19,6 +19,24 @@ function db_escape($value) {
 	return mysqli_real_escape_string(DbConnector::$link, $value);
 }
 
+function qdb_h($value) {
+	return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+function qdb_text_to_html($value) {
+	$value = str_replace(array("\r\n", "\r"), "\n", (string) $value);
+	return nl2br(qdb_h($value), false);
+}
+
+function qdb_render_legacy_html($value) {
+	return (string) $value;
+}
+
+function qdb_legacy_html_to_text($value) {
+	$value = preg_replace('/<br\s*\/?>/i', "\n", (string) $value);
+	return html_entity_decode($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
 //Execute supplied query and return HTMLised Quote(s)
 function format_quote($quote_sql) {
 	$return_string = '';
@@ -43,9 +61,9 @@ function format_quote($quote_sql) {
 	<a href="?'.$row['id'].'" title="PermaLink"><b>#'.$row['id'].'</b></a> <a href="#" onclick="return rox('.$row['id'].');" class="qa">+</a>(<span id="score'.$row['id'].'">'.$row['rating'].'</span>)<a href="#" onclick="return sox('.$row['id'].');" class="qa">-</a> <a href="#" onclick="return sux('.$row['id'].');" class="qa">[X]</a>
 </p>
 <p class="qt">
-'.$row['quote'].'<br />';
+	'.qdb_render_legacy_html($row['quote']).'<br />';
 		if ($row['comment'] != "") {
-			$return_string .= '<i>Comment:</i> '.$row['comment']."<br />";
+			$return_string .= '<i>Comment:</i> '.qdb_text_to_html($row['comment'])."<br />";
 		}
 $return_string .= '</p>
 </div>
@@ -523,10 +541,10 @@ function admin_pending() {
 	';
 	$adminid = $_SESSION['userid'];
 	$result = db_connect_query("SELECT * FROM qdb WHERE approved = 0 "); //AND modid = '$adminid'
-	
+
 	while ( $row = mysqli_fetch_array($result, MYSQLI_ASSOC) ) {
 		$return_string .= '<div id="pending_'.$row['id'].'" class="pending"><p class="quote"><b>#'.$row['id'].'</b>&nbsp;('.$row['rating'].')&nbsp;<a href="#" onclick="return approve('.$row['id'].');" class="qa">[Approve]</a>&nbsp;<a href="#" onclick="return reject('.$row['id'].');" class="qa">[Reject]</a>';
-		$return_string .= "<p class='qt'>".$row["quote"]."</p></div>";
+		$return_string .= "<p class='qt'>".qdb_render_legacy_html($row["quote"])."</p></div>";
 	}
 
 	$return_string .= '</div>';
@@ -549,7 +567,7 @@ function admin_flagged() {
 
 	while ( $row = mysqli_fetch_array($result, MYSQLI_ASSOC) ) {
 		$return_string .= '<div id="flagged_'.$row['id'].'" class="flagged"><p class="quote"><b>#'.$row['id'].'</b>&nbsp;<a href="#" onclick="return kill('.$row['id'].');" class="qa">[Kill]</a>'."\n".'<a href="#" onclick="return unflag('.$row['id'].');" class="qa">[UnFlag]</a>'."\n".'</p>';
-		$return_string .= '<p class="qt">'.$row["quote"].'</p></div>';
+		$return_string .= '<p class="qt">'.qdb_render_legacy_html($row["quote"]).'</p></div>';
 	}
 
 	$return_string .= '</div></fieldset>';
@@ -721,8 +739,8 @@ function news() {
 	while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
 		$return_string .= '<div class="news">';
 		$postdate = explode('-', $row['postdate']);
-		
-		$return_string .= '<b>'.$postdate[2].'-'.$postdate[1].'-'.$postdate[0].'</b> By: '.$row['username'].'<br /><p>'.$row['post'].'</p></div>';
+
+		$return_string .= '<b>'.$postdate[2].'-'.$postdate[1].'-'.$postdate[0].'</b> By: '.$row['username'].'<br /><p>'.qdb_render_legacy_html($row['post']).'</p></div>';
 	}
 	mysqli_free_result($result);
 
@@ -741,7 +759,7 @@ function admin_news() {
 				$postid = @$_POST['selnews'];
 				$owner = @$_SESSION['userid'];
 				$time = date("Y\-m\-d");
-				$post = db_escape(nl2br(mquotes($_POST['content'])));
+				$post = db_escape(qdb_text_to_html(mquotes($_POST['content'])));
 				db_connect_query("INSERT INTO qdbnews (postdate,post,userid) VALUES ('$time','$post','$owner');");
 			}
 		}
@@ -752,7 +770,7 @@ function admin_news() {
 			else {
 				$postid = @$_POST['selnews'];
 				$time = date("Y\-m\-d");
-				$post = db_escape(nl2br(mquotes($_POST['content'])));
+				$post = db_escape(qdb_text_to_html(mquotes($_POST['content'])));
 				db_connect_query("UPDATE qdbnews SET post = '".$post."' WHERE postid ='".$postid."';");
 			}
 		}
@@ -780,7 +798,7 @@ function admin_news() {
 	$return_string .= "</select><br />";
 
 	if (isset($newscontent)) {
-		$return_string .= '<textarea wrap="virtual" name="content" cols="80" rows="10" class="basicinput">'.str_replace("<br />","\n",$newscontent).'</textarea><br /><br /><input type="submit" name="post_edit" value="Edit Post" class="basicsubmit" /> ';
+		$return_string .= '<textarea wrap="virtual" name="content" cols="80" rows="10" class="basicinput">'.qdb_h(qdb_legacy_html_to_text($newscontent)).'</textarea><br /><br /><input type="submit" name="post_edit" value="Edit Post" class="basicsubmit" /> ';
 	}
 	else {
 		$return_string .= '<textarea wrap="virtual" name="content" cols="80" rows="10" class="basicinput"></textarea><br /><br />';

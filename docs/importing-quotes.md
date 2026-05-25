@@ -76,7 +76,7 @@ Imported rows use:
 - `comment=''`
 - `modid=1` by default
 
-The importer stores HTML-safe quote bodies because `qdb/common.php::format_quote()` renders quote content raw. Literal `\n` sequences are converted to line breaks, escaped with `htmlspecialchars(..., ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`, then converted with `nl2br(..., false)`.
+The importer stores HTML-safe quote bodies because `qdb/common.php::format_quote()` currently renders imported quote rows through the transitional `qdb_render_legacy_html()` path. Literal `\n` sequences are converted to line breaks, escaped with `htmlspecialchars(..., ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`, then converted with `nl2br(..., false)`.
 
 Dry run first:
 

@@ -2,7 +2,7 @@
 
 ## Executive summary
 
-This is a legacy LAN-only PHP quote database. It is provisionally functional on PHP 8, but it should not be exposed to the public internet. Slice 1 hardens authentication, session cookies, and local configuration without changing visible site behaviour. Slice 2A makes admin quote moderation actions POST-only and CSRF-protected. Slice 2B adds CSRF protection to the remaining admin forms in `qdb/common.php`. Slice 2C removes JSONP from vote actions and returns plain JSON. The legacy web dumper has been retired in favour of CLI-only import tooling.
+This is a legacy LAN-only PHP quote database. It is provisionally functional on PHP 8, but it should not be exposed to the public internet. Slice 1 hardens authentication, session cookies, and local configuration without changing visible site behaviour. Slice 2A makes admin quote moderation actions POST-only and CSRF-protected. Slice 2B adds CSRF protection to the remaining admin forms in `qdb/common.php`. Slice 2C removes JSONP from vote actions and returns plain JSON. The legacy web dumper has been retired in favour of CLI-only import tooling. Output rendering now has explicit transitional helpers, but full database content normalization is still deferred.
 
 ## Confirmed findings
 
@@ -14,7 +14,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 
 ### High
 
-- `qdb/common.php::format_quote()`, `news()`, `admin_pending()`, and `admin_flagged()` render quote, comment, and news HTML from the database without escaping.
+- Partially addressed: `qdb/common.php` now uses explicit render helpers for quotes, comments, and news. Existing quote/news HTML is still rendered as legacy HTML until stored content can be normalized.
 - Retired: `qdb/dumper/index.php` was web-accessible importer/scraper tooling with legacy database access assumptions.
 
 ### Medium
@@ -38,13 +38,14 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 - Slice 2C: `qdb/vote.php` no longer accepts or emits JSONP callbacks. Public vote/flag actions and admin moderation actions now return `application/json`, and vote dispatch uses explicit action maps.
 - Session follow-up: existing admin sessions are now validated by `userid` lookup instead of storing and rechecking password hashes in `$_SESSION`.
 - Dumper retirement: the web-accessible `qdb/dumper/index.php` scraper/importer was removed. Quote imports now use CLI-only tooling in `tools/`.
+- Output rendering policy: `qdb/common.php` now has `qdb_h()`, `qdb_text_to_html()`, and `qdb_render_legacy_html()` helpers. New/edited news posts are escaped before storage under the current transitional model. See `docs/rendering-policy.md`.
 
 ## Recommended patch slices
 
 1. Completed: authentication, sessions, and local configuration.
 2. Completed: CSRF protection for admin change password, add user, and news post/edit forms.
 3. Review public vote abuse/rate limiting and whether public voting should require CSRF or another anti-automation control.
-4. Escape quote, comment, and news rendering while preserving intended formatting.
+4. Partially completed: explicit output rendering helpers and transitional news escaping are in place. Full plain-text storage normalization remains deferred.
 5. Completed: retire `qdb/dumper/index.php` and use CLI-only import tooling.
 6. Incrementally replace high-risk string-built SQL with parameterized or tightly typed helpers.
 7. Moderation queue pagination/limits and cleanup of mod assignment behaviour.
@@ -69,3 +70,4 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 - Should `/hqdb/` remain the canonical deployment path for all environments?
 - What minimum PHP version should be supported beyond the current PHP 8 target?
 - What public vote abuse controls are appropriate for the LAN deployment: CSRF, per-session limits, rate limits, or moderation-only voting?
+- What migration strategy should normalize legacy `qdb.quote` and `qdbnews.post` rows to plain text without double-escaping imported quote content?
