@@ -2,7 +2,7 @@
 
 ## Executive summary
 
-This is a legacy LAN-only PHP quote database. It is provisionally functional on PHP 8, but it should not be exposed to the public internet. Slice 1 hardens authentication, session cookies, and local configuration without changing visible site behaviour. Slice 2A makes admin quote moderation actions POST-only and CSRF-protected. Slice 2B adds CSRF protection to the remaining admin forms in `qdb/common.php`. Slice 2C removes JSONP from vote actions and returns plain JSON.
+This is a legacy LAN-only PHP quote database. It is provisionally functional on PHP 8, but it should not be exposed to the public internet. Slice 1 hardens authentication, session cookies, and local configuration without changing visible site behaviour. Slice 2A makes admin quote moderation actions POST-only and CSRF-protected. Slice 2B adds CSRF protection to the remaining admin forms in `qdb/common.php`. Slice 2C removes JSONP from vote actions and returns plain JSON. The legacy web dumper has been retired in favour of CLI-only import tooling.
 
 ## Confirmed findings
 
@@ -15,7 +15,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 ### High
 
 - `qdb/common.php::format_quote()`, `news()`, `admin_pending()`, and `admin_flagged()` render quote, comment, and news HTML from the database without escaping.
-- `qdb/dumper/index.php` is web-accessible importer/scraper tooling and still contains legacy database access assumptions.
+- Retired: `qdb/dumper/index.php` was web-accessible importer/scraper tooling with legacy database access assumptions.
 
 ### Medium
 
@@ -37,6 +37,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 - Slice 2B: `qdb/common.php` admin forms for change password, add user, and news post/edit now include hidden CSRF tokens and validate them before mutating state.
 - Slice 2C: `qdb/vote.php` no longer accepts or emits JSONP callbacks. Public vote/flag actions and admin moderation actions now return `application/json`, and vote dispatch uses explicit action maps.
 - Session follow-up: existing admin sessions are now validated by `userid` lookup instead of storing and rechecking password hashes in `$_SESSION`.
+- Dumper retirement: the web-accessible `qdb/dumper/index.php` scraper/importer was removed. Quote imports now use CLI-only tooling in `tools/`.
 
 ## Recommended patch slices
 
@@ -44,7 +45,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 2. Completed: CSRF protection for admin change password, add user, and news post/edit forms.
 3. Review public vote abuse/rate limiting and whether public voting should require CSRF or another anti-automation control.
 4. Escape quote, comment, and news rendering while preserving intended formatting.
-5. Move `qdb/dumper/index.php` to CLI-only tooling.
+5. Completed: retire `qdb/dumper/index.php` and use CLI-only import tooling.
 6. Incrementally replace high-risk string-built SQL with parameterized or tightly typed helpers.
 7. Moderation queue pagination/limits and cleanup of mod assignment behaviour.
 8. Search performance review after importing representative data.
@@ -66,6 +67,5 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 
 - Is raw HTML in quotes/news/comments an intentional feature or legacy accident?
 - Should `/hqdb/` remain the canonical deployment path for all environments?
-- Should `qdb/dumper/index.php` be retained at all after initial import tooling is replaced?
 - What minimum PHP version should be supported beyond the current PHP 8 target?
 - What public vote abuse controls are appropriate for the LAN deployment: CSRF, per-session limits, rate limits, or moderation-only voting?

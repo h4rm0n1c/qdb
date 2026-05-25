@@ -4,6 +4,8 @@ This project must not import quotes during web requests. Import tooling is CLI-o
 
 Do not commit third-party quote archives, generated TSV files, or `qdb/local_config.php`.
 
+The legacy web dumper at `qdb/dumper/index.php` has been removed. Do not reintroduce web-accessible importers; use the CLI tools in `tools/` instead.
+
 ## Known sources
 
 ### lenaxia/bash_irc_quotes
