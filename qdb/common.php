@@ -559,7 +559,7 @@ function admin_flagged() {
 
 //Returns the moderator "panel" to allow a moderator to change their password
 function admin_changepass() {
-	$return_string = '<br /><fieldset id="changepass"><legend>Change Password <a href="#top" >[Top]</a></legend><table width="100%" cellpadding="0"><tr><td><form action="./?changepass" method="post"><table align="left"><tr><td align="right">New password: <input type="password" name="pass" size="28" class="basicinput"></td></tr><tr><td align="right">Repeat Password: <input type="password" name="passchk" size="28" class="basicinput"></td></tr><tr><td align="right"><input type="submit" name="submit" class="basicsubmit" value="Change Password"></td></tr></table></form></td></tr></table>';
+	$return_string = '<br /><fieldset id="changepass"><legend>Change Password <a href="#top" >[Top]</a></legend><table width="100%" cellpadding="0"><tr><td><form action="./?changepass" method="post">'.qdb_csrf_hidden_input().'<table align="left"><tr><td align="right">New password: <input type="password" name="pass" size="28" class="basicinput"></td></tr><tr><td align="right">Repeat Password: <input type="password" name="passchk" size="28" class="basicinput"></td></tr><tr><td align="right"><input type="submit" name="submit" class="basicsubmit" value="Change Password"></td></tr></table></form></td></tr></table>';
 	$return_string .= '<p>When you have changed your password, you will be automatically logged out, then just log back in with your new password.<br />
 	Passwords must be between 6 and 20 characters long and can only be alphanumeric, in uppercase and/or lowercase (0-9 A-Z a-z)</p></fieldset>';
 	return $return_string;
@@ -568,8 +568,12 @@ function admin_changepass() {
 //Does the actual password changing for admin_changepass()
 function changepass() {
 
-	
+
 	if (checklogin()) {
+		if (!qdb_csrf_validate(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
+			header('Refresh: 3;URL=./?admin');
+			return '<b>Error</b>: Invalid security token, please try again.';
+		}
 		$username = $_SESSION['username'];
 		$pass = $_POST['pass'];
 		$passchk = $_POST['passchk'];
@@ -616,6 +620,7 @@ function admin_adduser() {
 				<tr>
 					<td>
 						<form action="./?adduser" method="post">
+							'.qdb_csrf_hidden_input().'
 							<table align="left">
 								<tr>
 									<td align="right">
@@ -649,12 +654,16 @@ function admin_adduser() {
 
 //The actual function that does the user adding for admin_adduser()
 function adduser() {
-	$nUSER = $_POST['newuser'];
-	$nPASSWORD = 'password';
-	$nEMAIL = $_POST['email'];
-	$nISADMIN = $_POST['isadmin'];
 	if(checklogin()){
 		if(issuperadmin()) {
+			if (!qdb_csrf_validate(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
+				header('Refresh: 3;URL=./?admin');
+				return '<b>Error</b>: Invalid security token, please try again.';
+			}
+			$nUSER = $_POST['newuser'];
+			$nPASSWORD = 'password';
+			$nEMAIL = $_POST['email'];
+			$nISADMIN = $_POST['isadmin'];
 			if(empty($_POST['newuser'])){
 				header('Refresh: 3;URL=./?admin');
 				return '<b>Error</b>: No Username Set';
@@ -722,25 +731,34 @@ function news() {
 
 //Admin panel for news section, admins can submit and edit news posts
 function admin_news() {
+	$return_string = "";
 	if (checklogin()) {
-		$return_string = "";
-
-		if(isset($_POST['post_new']) && $_POST['content'] != '') {
-			$postid = @$_POST['selnews'];
-			$owner = @$_SESSION['userid'];
-			$time = date("Y\-m\-d");
-			$post = db_escape(nl2br(mquotes($_POST['content'])));
-			db_connect_query("INSERT INTO qdbnews (postdate,post,userid) VALUES ('$time','$post','$owner');");
+		if(isset($_POST['post_new'])) {
+			if (!qdb_csrf_validate(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
+				$return_string .= '<p><b>Error</b>: Invalid security token, please try again.</p>';
+			}
+			else if ($_POST['content'] != '') {
+				$postid = @$_POST['selnews'];
+				$owner = @$_SESSION['userid'];
+				$time = date("Y\-m\-d");
+				$post = db_escape(nl2br(mquotes($_POST['content'])));
+				db_connect_query("INSERT INTO qdbnews (postdate,post,userid) VALUES ('$time','$post','$owner');");
+			}
 		}
 		else if(isset($_POST['post_edit'])) {
-			$postid = @$_POST['selnews'];
-			$time = date("Y\-m\-d");
-			$post = db_escape(nl2br(mquotes($_POST['content'])));
-			db_connect_query("UPDATE qdbnews SET post = '".$post."' WHERE postid ='".$postid."';");
+			if (!qdb_csrf_validate(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
+				$return_string .= '<p><b>Error</b>: Invalid security token, please try again.</p>';
+			}
+			else {
+				$postid = @$_POST['selnews'];
+				$time = date("Y\-m\-d");
+				$post = db_escape(nl2br(mquotes($_POST['content'])));
+				db_connect_query("UPDATE qdbnews SET post = '".$post."' WHERE postid ='".$postid."';");
+			}
 		}
 	}
 
-	$return_string = "<br /><fieldset id='news'><legend>News <a href='#top' >[Top]</a></legend><form name='news' action='./?admin' method='post'><select name='selnews' onchange='javascript: document.news.submit()'>";
+	$return_string .= "<br /><fieldset id='news'><legend>News <a href='#top' >[Top]</a></legend><form name='news' action='./?admin' method='post'>".qdb_csrf_hidden_input()."<select name='selnews' onchange='javascript: document.news.submit()'>";
 
 	$result = db_connect_query("SELECT * FROM qdbnews");
 

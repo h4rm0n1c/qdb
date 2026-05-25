@@ -2,7 +2,7 @@
 
 ## Executive summary
 
-This is a legacy LAN-only PHP quote database. It is provisionally functional on PHP 8, but it should not be exposed to the public internet. Slice 1 hardens authentication, session cookies, and local configuration without changing visible site behaviour. Slice 2A makes admin quote moderation actions POST-only and CSRF-protected.
+This is a legacy LAN-only PHP quote database. It is provisionally functional on PHP 8, but it should not be exposed to the public internet. Slice 1 hardens authentication, session cookies, and local configuration without changing visible site behaviour. Slice 2A makes admin quote moderation actions POST-only and CSRF-protected. Slice 2B adds CSRF protection to the remaining admin forms in `qdb/common.php`.
 
 ## Confirmed findings
 
@@ -35,18 +35,18 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 
 - Slice 1: authentication, sessions, and local configuration.
 - Slice 2A: `qdb/vote.php` admin moderation actions `approve`, `reject`, `kill`, and `unflag` now require POST and a valid CSRF token. `qdb/includes/library.php::do_admin()` now uses an explicit action map instead of a dynamic function name.
+- Slice 2B: `qdb/common.php` admin forms for change password, add user, and news post/edit now include hidden CSRF tokens and validate them before mutating state.
 
 ## Recommended patch slices
 
-1. Authentication, sessions, and local configuration.
-2. Add CSRF protection to remaining admin forms: change password, add user, and news.
-3. Review public voting/flagging CSRF behaviour.
-4. JSONP callback validation or removal after confirming callers.
-5. Escape quote, comment, and news rendering while preserving intended formatting.
-6. Move `qdb/dumper/index.php` to CLI-only tooling.
-7. Incrementally replace high-risk string-built SQL with parameterized or tightly typed helpers.
-8. Moderation queue pagination/limits and cleanup of mod assignment behaviour.
-9. Search performance review after importing representative data.
+1. Completed: authentication, sessions, and local configuration.
+2. Completed: CSRF protection for admin change password, add user, and news post/edit forms.
+3. Review public voting/flagging CSRF behaviour and remove or replace JSONP after confirming callers.
+4. Escape quote, comment, and news rendering while preserving intended formatting.
+5. Move `qdb/dumper/index.php` to CLI-only tooling.
+6. Incrementally replace high-risk string-built SQL with parameterized or tightly typed helpers.
+7. Moderation queue pagination/limits and cleanup of mod assignment behaviour.
+8. Search performance review after importing representative data.
 
 ## Manual smoke test checklist
 

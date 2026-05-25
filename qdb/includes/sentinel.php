@@ -144,6 +144,10 @@ function qdb_csrf_validate($token) {
 	return isset($_SESSION['csrf_token']) && is_string($token) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
+function qdb_csrf_hidden_input() {
+	return '<input type="hidden" name="csrf" value="' . htmlspecialchars(qdb_csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">';
+}
+
 //If the current user is an Administrator (their isadmin field is set to 1)
 function issuperadmin() {
 	return $GLOBALS['sentinel']->isAdmin();
