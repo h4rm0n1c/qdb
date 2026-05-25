@@ -37,12 +37,10 @@ function qdb_legacy_html_to_text($value) {
 	return html_entity_decode($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
-//Execute supplied query and return HTMLised Quote(s)
-function format_quote($quote_sql) {
+function format_quote_result($result) {
 	$return_string = '';
-	$result = db_connect_query($quote_sql);
 	$quote_result = 0;
-	
+
 	//Interpolating quote colour vars
 	$greys_counter = 0;
 	$div_id = "white";
@@ -78,6 +76,33 @@ $return_string .= '</p>
 	else {
 		return "";
 	}
+}
+
+//Execute supplied query and return HTMLised Quote(s)
+function format_quote($quote_sql) {
+	return format_quote_result(db_connect_query($quote_sql));
+}
+
+function qdb_normalize_search_term($value, &$error) {
+	$term = trim(mquotes((string) $value));
+	$term = preg_replace('/\s+/', ' ', $term);
+	$length = function_exists('mb_strlen') ? mb_strlen($term, 'UTF-8') : strlen($term);
+
+	if($term === '') {
+		$error = '';
+		return '';
+	}
+	if($length < 2) {
+		$error = 'Search must be at least 2 characters.';
+		return '';
+	}
+	if($length > 100) {
+		$error = 'Search must be 100 characters or fewer.';
+		return '';
+	}
+
+	$error = '';
+	return $term;
 }
 
 //Returns true (1) when the supplied quote id is pending (Approved field is set to 0)
@@ -362,12 +387,14 @@ function search() {
 	$quote = (isset($_GET['search'])? $_GET['search'] : '');
 	$order = (isset($_GET['order'])? $_GET['order'] : 'rating');
 	$sort = (isset($_GET['sort'])? $_GET['sort'] : 'desc');
-	$number = (isset($_GET['show'])? $_GET['show'] : '25');
+	$number = (isset($_GET['show'])? $_GET['show'] : '50');
 	$approved = (isset($_GET['approved'])? $_GET['approved'] : '1');
-		
+	$search_error = '';
+	$search_term = qdb_normalize_search_term($quote, $search_error);
+
 	$orderopts = array('rating' => 'Score', 'id' => 'Number');
 	$sortopts = array('asc' => 'Ascending', 'desc' => 'Descending');
-	$numberopts = array('10' => 10, '25' => 25, '50' => 50, '75' => 75, '100' => 100);
+	$numberopts = array('10' => 10, '25' => 25, '50' => 50);
 	$approveopts = array('1' => 'Approved', '0' => 'All');
 	
 	$return_string = "";
@@ -382,7 +409,7 @@ function search() {
 						Keywords:
 					</td>
 					<td>
-						<input type="text" name="search" size="28" class="basicinput" value="'.htmlentities($quote).'">
+						<input type="text" name="search" size="28" class="basicinput" value="'.qdb_h($quote).'">
 					</td>
 					<td valign="top">
 						<input type="submit" class="basicsubmit" value="Search">
@@ -419,29 +446,35 @@ function search() {
 	</center>
 ';
 
-	if ($quote != '') {
-		$quote = db_escape(mquotes($quote));
-		if ($order == '' || $order != 'rating' && $order != 'id') {
+	if ($search_error !== '') {
+		$return_string .= '<b>'.qdb_h($search_error).'</b>';
+	}
+	else if ($search_term != '') {
+		if ($order == '' || ($order != 'rating' && $order != 'id')) {
 			$order = "rating";
 		}
-		if ($sort == '' && $sort != "desc" && $sort != "asc") {
+		if ($sort == '' || ($sort != "desc" && $sort != "asc")) {
 			$sort = 'desc';
 		}
-		if ($number  == '' || $number < 10 || $number > 100) {
-			$number = 25;
+		$number = (int) $number;
+		if ($number < 10 || $number > 50) {
+			$number = 50;
 		}
-		if ($approved == 1 || $approved == '') {
-			$approved = " AND approved = 1";
+		if ($approved == '1' || $approved == '') {
+			$approved_sql = " AND approved = 1";
 		}
-		else if ($approved == 0) {
-			$approved = "";
+		else if ($approved == '0') {
+			$approved_sql = "";
 		}
-		$sql = "SELECT * FROM qdb WHERE MATCH (`quote`) AGAINST ('".$quote."' IN BOOLEAN MODE)".$approved." ORDER BY `".$order."` ".$sort." ,MATCH (`quote`) AGAINST('".$quote."' IN BOOLEAN MODE) DESC LIMIT " . $number;
+		else {
+			$approved_sql = " AND approved = 1";
+		}
+		$sql = "SELECT * FROM qdb WHERE MATCH (`quote`) AGAINST (? IN BOOLEAN MODE)".$approved_sql." ORDER BY `".$order."` ".$sort." ,MATCH (`quote`) AGAINST(? IN BOOLEAN MODE) DESC LIMIT " . $number;
 
-		$quote_string = format_quote($sql);
+		$quote_string = format_quote_result(db_prepared_query($sql, 'ss', array($search_term, $search_term)));
 	}
-	
-	if($quote_string == "" && $quote != '') {
+
+	if($quote_string == "" && $search_term != '' && $search_error === '') {
 		$return_string .= "<b>Search found nothing</b>";
 	} else {
 		$return_string .= $quote_string;
