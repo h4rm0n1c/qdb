@@ -44,9 +44,9 @@ $host = $qdb_config['db_host'];
 $qdb_session_cookie_path = $qdb_config['session_cookie_path'];
 $qdb_session_cookie_secure = filter_var($qdb_config['session_cookie_secure'], FILTER_VALIDATE_BOOLEAN);
 
-include './includes/dbconnector.php';
-include './includes/user.php';
-include './includes/sentinel.php';
+require_once __DIR__ . '/includes/dbconnector.php';
+require_once __DIR__ . '/includes/user.php';
+require_once __DIR__ . '/includes/sentinel.php';
 
 //License Content
 $license = '
