@@ -390,15 +390,15 @@ function search() {
 	$number = (isset($_GET['show'])? $_GET['show'] : '50');
 	$approved = (isset($_GET['approved'])? $_GET['approved'] : '1');
 	$search_error = '';
+	$quote_string = '';
 	$search_term = qdb_normalize_search_term($quote, $search_error);
 
 	$orderopts = array('rating' => 'Score', 'id' => 'Number');
 	$sortopts = array('asc' => 'Ascending', 'desc' => 'Descending');
 	$numberopts = array('10' => 10, '25' => 25, '50' => 50);
 	$approveopts = array('1' => 'Approved', '0' => 'All');
-	
+
 	$return_string = "";
-	$quote_string = "";
 
 	$return_string .= '
 	<center>
