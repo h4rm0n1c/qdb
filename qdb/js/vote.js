@@ -1,13 +1,25 @@
-window.onload = function() {
-	obj = new domAjax('./vote.php', 'vote');
-}
-
 function vote(id, type) {
-	obj.addParam('callback', 'vote_callback');
-	obj.addParam('qid', id);
-	obj.addParam('type', type);
-	obj.query();
-	obj.clearParams();
+	var xhr = new XMLHttpRequest();
+	var params = 'qid=' + encodeURIComponent(id) + '&type=' + encodeURIComponent(type);
+	xhr.open('POST', './vote.php', true);
+	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState != 4) {
+			return;
+		}
+
+		try {
+			var data = JSON.parse(xhr.responseText);
+			if (xhr.status >= 200 && xhr.status < 300) {
+				vote_callback(data);
+			} else {
+				alert(data.errormsg || 'Vote failed');
+			}
+		} catch (e) {
+			alert('Vote failed');
+		}
+	};
+	xhr.send(params);
 }
 
 function adminvote(id, type) {

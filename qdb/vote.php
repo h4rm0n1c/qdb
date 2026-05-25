@@ -3,36 +3,50 @@ require_once __DIR__ . '/global.php';
 require_once __DIR__ . '/includes/library.php';
 //token();
 
-function admin_json_error($qid, $errormsg, $status) {
+header('Content-Type: application/json; charset=utf-8');
+
+function vote_json_response($qid, $newscore, $error, $errormsg, $status = 200) {
 	http_response_code($status);
-	echo json_encode(array('qid' => $qid, 'newscore' => 'none', 'error' => true, 'errormsg' => $errormsg));
+	echo json_encode(array('qid' => $qid, 'newscore' => $newscore, 'error' => $error, 'errormsg' => $errormsg));
 	exit;
+}
+
+function vote_json_error($qid, $errormsg, $status) {
+	vote_json_response($qid, 'none', true, $errormsg, $status);
+}
+
+function vote_request_value($key) {
+	if (isset($_POST[$key])) {
+		return $_POST[$key];
+	}
+	if (isset($_GET[$key])) {
+		return $_GET[$key];
+	}
+	return null;
 }
 
 $admin_actions = array('approve', 'reject', 'kill', 'unflag');
 $public_actions = array('rox', 'sox', 'sux');
-$request = $_SERVER['REQUEST_METHOD'] === 'POST' ? $_POST : $_GET;
+$qid_param = vote_request_value('qid');
+$type = vote_request_value('type');
 
-if (!isset($request['qid']) || !ctype_digit((string) $request['qid'])) { die('Error: quote id not specified'); } else { $qid = (int) $request['qid']; }
-if (!isset($request['type'])) { die('Error: vote type not specified'); } else { $type = $request['type']; }
+if ($qid_param === null || !ctype_digit((string) $qid_param) || (int) $qid_param <= 0) {
+	vote_json_error(0, 'Invalid quote id', 400);
+}
+$qid = (int) $qid_param;
+
+if ($type === null || (!in_array($type, $admin_actions, true) && !in_array($type, $public_actions, true))) {
+	vote_json_error($qid, 'Invalid vote type specified', 400);
+}
 
 $is_admin_action = in_array($type, $admin_actions, true);
-if (!$is_admin_action) {
-	jsHeader();
-	if (!in_array($type, $public_actions, true)) { die('Error: Invalid vote type Specified'); }
-	if (!isset($_GET['callback'])) { die('Error: callback not specified'); }
-} else {
-	header('Content-type: application/json');
+if ($is_admin_action) {
 	if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-		http_response_code(405);
-		echo json_encode(array('qid' => $qid, 'newscore' => 'none', 'error' => true, 'errormsg' => 'Admin actions require POST'));
-		exit;
+		vote_json_error($qid, 'Admin actions require POST', 405);
 	}
 	admin_session();
 	if (!isset($_POST['csrf']) || !qdb_csrf_validate($_POST['csrf'])) {
-		http_response_code(403);
-		echo json_encode(array('qid' => $qid, 'newscore' => 'none', 'error' => true, 'errormsg' => 'Invalid CSRF token'));
-		exit;
+		vote_json_error($qid, 'Invalid CSRF token', 403);
 	}
 }
 
@@ -45,43 +59,39 @@ $errormsg = '';
 
 switch($type) {
 	case 'rox':
-		$newscore = count_vote($qid, 1);
-	break;
-	
 	case 'sox':
-		$newscore = count_vote($qid, 0);
-	break;
-	
 	case 'sux':
-		quote_sux($qid);
+		$public_result = do_public_vote($type, $qid);
+		if (is_array($public_result)) { vote_json_error($qid, $public_result['errormsg'], $public_result['status']); }
+		$newscore = $public_result;
 	break;
 
 	case 'approve':
 		$admin_result = do_admin('approve', $qid);
-		if ($admin_result !== true) { admin_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
+		if ($admin_result !== true) { vote_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
 		$newscore = 'pending_';
 	break;
 
 	case 'reject':
 		$admin_result = do_admin('kill', $qid);
-		if ($admin_result !== true) { admin_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
+		if ($admin_result !== true) { vote_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
 		$newscore = 'pending_';
 	break;
 
 	case 'kill':
 		$admin_result = do_admin('kill', $qid);
-		if ($admin_result !== true) { admin_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
+		if ($admin_result !== true) { vote_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
 		$newscore = 'flagged_';
 	break;
 
 	case 'unflag':
 		$admin_result = do_admin('unflag', $qid);
-		if ($admin_result !== true) { admin_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
+		if ($admin_result !== true) { vote_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
 		$newscore = 'flagged_';
 	break;
 
 	default:
-		die('Error: Invalid vote type Specified');
+		vote_json_error($qid, 'Invalid vote type specified', 400);
 	break;
 }
 
@@ -92,9 +102,5 @@ if($newscore == 'false') {
 
 $jsarray = array('qid' => $qid + 0, 'newscore' => $newscore, 'error' => $error, 'errormsg' => $errormsg);
 
-if ($is_admin_action) {
-	echo json_encode($jsarray);
-} else {
-	echo jsCallback(json_encode($jsarray));
-}
+echo json_encode($jsarray);
 ?>

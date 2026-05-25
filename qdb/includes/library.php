@@ -1,21 +1,4 @@
 <?php
-//domAjax server side library
-function jsHeader() {
-header('Content-type: text/javascript');
-header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
-header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
-header('Cache-Control: no-store, no-cache, must-revalidate');
-header('Cache-Control: post-check=0, pre-check=0', false);
-}
-
-function escapeString($data) {
-	return str_replace(array("\r", "\n"), '\n', addslashes($data));
-}
-
-function jsCallback($jsdata) {
-	return $_GET['callback']."(".$jsdata.");";
-}
-
 //TODO: finish token support
 function token() {
 	if (!isset($_SESSION['token'])) {
@@ -24,6 +7,7 @@ function token() {
 }
 
 function count_vote($qID, $type) {
+	$qID = (int) $qID;
 	$ip = $_SERVER['REMOTE_ADDR'];
 	$voted = false;
 	$result = db_connect_query("SELECT * FROM votes WHERE ip = '$ip' AND qid = '$qID' ORDER BY vid");
@@ -52,6 +36,21 @@ function count_vote($qID, $type) {
 	}
 }
 
+function do_public_vote($type, $qid) {
+	$actions = array(
+		'rox' => 'quote_rox',
+		'sox' => 'quote_sox',
+		'sux' => 'quote_sux',
+	);
+	$qid = (int) $qid;
+
+	if(!isset($actions[$type])) {
+		return array('status' => 400, 'errormsg' => 'Invalid vote type specified');
+	}
+
+	return $actions[$type]($qid);
+}
+
 function do_admin($type, $qid) {
 	$actions = array(
 		'approve' => 'quote_approve',
@@ -73,10 +72,19 @@ function do_admin($type, $qid) {
 	return true;
 }
 
+function quote_rox($qid) {
+	return count_vote($qid, 1);
+}
+
+function quote_sox($qid) {
+	return count_vote($qid, 0);
+}
+
 function quote_sux($qid) {
 	$qid = (int) $qid;
 	$sql = "UPDATE qdb SET flagged = 1 WHERE id =".$qid;
 	db_connect_query($sql);
+	return 'none';
 }
 
 //Admin approve quote
