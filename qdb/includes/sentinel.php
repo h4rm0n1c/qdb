@@ -55,7 +55,6 @@ class Sentinel {
 				header("Cache-control: public");
 				header("Pragma: public");
 			}
-			qdb_debug_auth_log('sentinel_after_auth', array('loggedin' => Sentinel::isLoggedIn(), 'authenticated' => (bool) $authenticated));
 		}
 
 		return self::$instance;
@@ -127,46 +126,6 @@ class Sentinel {
 			}
 		}
 	}
-}
-
-function qdb_debug_auth_log($label, $extra = array()) {
-	if (empty($GLOBALS['qdb_debug_auth'])) {
-		return;
-	}
-
-	$sessionName = session_name();
-	$sessionId = session_id();
-	$cookieValue = isset($_COOKIE[$sessionName]) ? (string) $_COOKIE[$sessionName] : '';
-	$sessionKeys = array();
-	if (isset($_SESSION) && is_array($_SESSION)) {
-		foreach (array('userid', 'username', 'isadmin', 'csrf_token', 'password') as $key) {
-			$sessionKeys[$key] = array_key_exists($key, $_SESSION);
-		}
-	}
-
-	$data = array(
-		'label' => $label,
-		'method' => isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : '',
-		'query' => isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '',
-		'session_status' => session_status(),
-		'session_name' => $sessionName,
-		'session_id_present' => $sessionId !== '',
-		'session_id_prefix' => $sessionId === '' ? '' : substr($sessionId, 0, 8),
-		'cookie_present' => $cookieValue !== '',
-		'cookie_prefix' => $cookieValue === '' ? '' : substr($cookieValue, 0, 8),
-		'session_keys' => $sessionKeys,
-		'post_keys' => isset($_POST) && is_array($_POST) ? array_keys($_POST) : array(),
-	);
-
-	if (class_exists('Sentinel', false) && isset(Sentinel::$loggedin)) {
-		$data['sentinel_loggedin'] = Sentinel::isLoggedIn();
-	}
-
-	foreach ($extra as $key => $value) {
-		$data[$key] = $value;
-	}
-
-	error_log('QDB_AUTH_DEBUG ' . json_encode($data));
 }
 
 function admin_session() {

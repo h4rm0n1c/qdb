@@ -6,5 +6,4 @@ return array(
 	'db_name' => 'qdb',
 	'session_cookie_path' => '/hqdb/',
 	'session_cookie_secure' => false,
-	'qdb_debug_auth' => false,
 );

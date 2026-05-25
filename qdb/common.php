@@ -469,7 +469,6 @@ return $return_string;
 //Returns the admin login page as a html formatted string
 function admin() {
 	global $navigation;
-	qdb_debug_auth_log('admin_start', array('loggedin' => Sentinel::isLoggedIn(), 'has_login_post' => isset($_POST['login'])));
 	$login = <<<EOF
 <center>
 	<form method="post" action="?admin">
@@ -490,7 +489,6 @@ EOF;
 			return $login;
 		}
 	} else {
-		qdb_debug_auth_log('admin_return_login_form');
 		return $login;
 	}
 }
@@ -733,7 +731,6 @@ function news() {
 
 //Admin panel for news section, admins can submit and edit news posts
 function admin_news() {
-	qdb_debug_auth_log('admin_news_start', array('loggedin' => Sentinel::isLoggedIn()));
 	$return_string = "";
 	if (checklogin()) {
 		if(isset($_POST['post_new'])) {
