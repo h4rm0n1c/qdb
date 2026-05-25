@@ -11,11 +11,27 @@ function vote(id, type) {
 }
 
 function adminvote(id, type) {
-	obj.addParam('callback', 'adminvote_callback');
-	obj.addParam('qid', id);
-	obj.addParam('type', type);
-	obj.query();
-	obj.clearParams();
+	var xhr = new XMLHttpRequest();
+	var params = 'qid=' + encodeURIComponent(id) + '&type=' + encodeURIComponent(type) + '&csrf=' + encodeURIComponent(window.qdbCsrfToken || '');
+	xhr.open('POST', './vote.php', true);
+	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState != 4) {
+			return;
+		}
+
+		try {
+			var data = JSON.parse(xhr.responseText);
+			if (xhr.status >= 200 && xhr.status < 300) {
+				adminvote_callback(data);
+			} else {
+				alert(data.errormsg || 'Admin action failed');
+			}
+		} catch (e) {
+			alert('Admin action failed');
+		}
+	};
+	xhr.send(params);
 }
 
 function rox(id) {
@@ -70,6 +86,8 @@ function adminvote_callback(js_data) {
 	if(js_data['error'] == false) {
 		var penddiv = document.getElementById(js_data['newscore'] + js_data['qid']);
 		penddiv.parentNode.removeChild(penddiv);
+	} else {
+		alert(js_data['errormsg'] || 'Admin action failed');
 	}
 }
 

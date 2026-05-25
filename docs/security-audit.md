@@ -2,7 +2,7 @@
 
 ## Executive summary
 
-This is a legacy LAN-only PHP quote database. It is provisionally functional on PHP 8, but it should not be exposed to the public internet. Slice 1 hardens authentication, session cookies, and local configuration without changing visible site behaviour.
+This is a legacy LAN-only PHP quote database. It is provisionally functional on PHP 8, but it should not be exposed to the public internet. Slice 1 hardens authentication, session cookies, and local configuration without changing visible site behaviour. Slice 2A makes admin quote moderation actions POST-only and CSRF-protected.
 
 ## Confirmed findings
 
@@ -14,7 +14,6 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 
 ### High
 
-- `qdb/vote.php` performs quote moderation actions from GET parameters, routed through `qdb/includes/library.php::do_admin()`. These actions have no active CSRF token check.
 - `qdb/includes/library.php::jsCallback()` reflects `$_GET['callback']` directly for JSONP responses.
 - `qdb/common.php::format_quote()`, `news()`, `admin_pending()`, and `admin_flagged()` render quote, comment, and news HTML from the database without escaping.
 - `qdb/dumper/index.php` is web-accessible importer/scraper tooling and still contains legacy database access assumptions.
@@ -32,16 +31,22 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 - Search in `qdb/common.php::search()` depends on MySQL/MariaDB FULLTEXT and needs performance review after real data import.
 - Several admin workflows use legacy redirects and messages that should be smoke-tested before larger refactors.
 
+## Implemented slices
+
+- Slice 1: authentication, sessions, and local configuration.
+- Slice 2A: `qdb/vote.php` admin moderation actions `approve`, `reject`, `kill`, and `unflag` now require POST and a valid CSRF token. `qdb/includes/library.php::do_admin()` now uses an explicit action map instead of a dynamic function name.
+
 ## Recommended patch slices
 
 1. Authentication, sessions, and local configuration.
-2. CSRF protection for admin state-changing actions, starting with `qdb/vote.php`.
-3. JSONP callback validation or removal after confirming callers.
-4. Escape quote, comment, and news rendering while preserving intended formatting.
-5. Move `qdb/dumper/index.php` to CLI-only tooling.
-6. Incrementally replace high-risk string-built SQL with parameterized or tightly typed helpers.
-7. Moderation queue pagination/limits and cleanup of mod assignment behaviour.
-8. Search performance review after importing representative data.
+2. Add CSRF protection to remaining admin forms: change password, add user, and news.
+3. Review public voting/flagging CSRF behaviour.
+4. JSONP callback validation or removal after confirming callers.
+5. Escape quote, comment, and news rendering while preserving intended formatting.
+6. Move `qdb/dumper/index.php` to CLI-only tooling.
+7. Incrementally replace high-risk string-built SQL with parameterized or tightly typed helpers.
+8. Moderation queue pagination/limits and cleanup of mod assignment behaviour.
+9. Search performance review after importing representative data.
 
 ## Manual smoke test checklist
 
@@ -53,6 +58,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 - Add a moderator/admin user and confirm the new account can log in with the default password.
 - Confirm the `hqdb` session cookie has `HttpOnly`, `SameSite=Lax`, and path `/hqdb/`.
 - Confirm existing quote voting still returns JavaScript through `qdb/vote.php`.
+- Confirm admin approve/reject/kill/unflag actions work from `?admin` and fail when attempted with old-style GET URLs.
 
 ## Open questions
 

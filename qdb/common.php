@@ -497,8 +497,8 @@ EOF;
 function adminpanel() {
 	global $navigation;
 	$links = '<a href="./?home">Home</a> | ';
-	$return_string = "";
-	
+	$return_string = '<script type="text/javascript">window.qdbCsrfToken = '.json_encode(qdb_csrf_token()).';</script>';
+
 	if(issuperadmin()) {
 		$links .= '<a href="#adduser">Add User</a> | ';
 		$return_string .= admin_adduser();

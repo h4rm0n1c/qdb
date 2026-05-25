@@ -53,34 +53,48 @@ function count_vote($qID, $type) {
 }
 
 function do_admin($type, $qid) {
+	$actions = array(
+		'approve' => 'quote_approve',
+		'kill' => 'quote_kill',
+		'unflag' => 'quote_unflag',
+	);
+	$qid = (int) $qid;
+
 	admin_session();
-	if(checklogin()) {
-		$type = 'quote_'.$type;
-		$type($qid);
-	} else {
+	if(!checklogin()) {
 		die('Error: Insufficient Credentials to preform requested operation');
 	}
+
+	if(!isset($actions[$type])) {
+		die('Error: Invalid admin operation');
+	}
+
+	$actions[$type]($qid);
 }
 
 function quote_sux($qid) {
+	$qid = (int) $qid;
 	$sql = "UPDATE qdb SET flagged = 1 WHERE id =".$qid;
 	db_connect_query($sql);
 }
 
 //Admin approve quote
 function quote_approve($qid) {
+	$qid = (int) $qid;
 	$sql = "UPDATE qdb SET approved = 1 WHERE id = '$qid'";
 	db_connect_query($sql);
 }
 
 //Kills a selected quote (deletes) from the database
 function quote_kill($qid) {
+	$qid = (int) $qid;
 	$sql = "DELETE FROM qdb WHERE id = '".$qid."';";
 	db_connect_query($sql);
 }
 
 //Unflags a quote that was flagged for review (sets the flagged field to 0)
 function quote_unflag($qid) {
+	$qid = (int) $qid;
 	$sql = "UPDATE qdb SET flagged = 0 WHERE id =".$qid;
 	db_connect_query($sql);
 }

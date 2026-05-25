@@ -124,6 +124,26 @@ function admin_session() {
 	}
 }
 
+function qdb_csrf_token() {
+	if (session_status() !== PHP_SESSION_ACTIVE) {
+		admin_session();
+	}
+
+	if (empty($_SESSION['csrf_token'])) {
+		$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+	}
+
+	return $_SESSION['csrf_token'];
+}
+
+function qdb_csrf_validate($token) {
+	if (session_status() !== PHP_SESSION_ACTIVE) {
+		admin_session();
+	}
+
+	return isset($_SESSION['csrf_token']) && is_string($token) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
 //If the current user is an Administrator (their isadmin field is set to 1)
 function issuperadmin() {
 	return $GLOBALS['sentinel']->isAdmin();
