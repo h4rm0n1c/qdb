@@ -1,16 +1,18 @@
 <?php
 //Singleton
 define ("COOKIE_NAME", 'hqdb');
-define("COOKIE_PATH", '/hqdb/');
+if (!defined('COOKIE_PATH')) {
+	define("COOKIE_PATH", isset($GLOBALS['qdb_session_cookie_path']) ? $GLOBALS['qdb_session_cookie_path'] : '/hqdb/');
+}
 
 class Sentinel {
 	public static $user;
 	public static $loggedin;
-	
+
 	public static $db;
-	
+
 	public static $instance;
-	
+
 	public function __clone() {
 		trigger_error('Clone of Sentinel class is not allowed.', E_USER_ERROR);
 	}
@@ -20,22 +22,30 @@ class Sentinel {
 		if(!isset(self::$db)) {
 			self::$db = DbConnector::getInstance();
 		}
-		
+
 		if(!isset(self::$user)) {
 			self::$user = new User();
 		}
-		
+
 		if(!isset(self::$loggedin)) {
 			self::$loggedin = false;
 		}
-	
+
 		if (!isset(self::$instance)) {
 			$c = __CLASS__;
 			self::$instance = new $c;
-			
-			session_name('hqdb');
-			//session_set_cookie_params(0, '/hqdb/');
-			session_start();
+
+			if (session_status() !== PHP_SESSION_ACTIVE) {
+				session_name(COOKIE_NAME);
+				session_set_cookie_params(array(
+					'lifetime' => 0,
+					'path' => COOKIE_PATH,
+					'secure' => isset($GLOBALS['qdb_session_cookie_secure']) ? (bool) $GLOBALS['qdb_session_cookie_secure'] : false,
+					'httponly' => true,
+					'samesite' => 'Lax',
+				));
+				session_start();
+			}
 			if(self::$instance->authenticate() == true) {
 				header("Cache-control: private");
 				header("Pragma: private");
@@ -45,33 +55,39 @@ class Sentinel {
 				header("Pragma: public");
 			}
 		}
-		
+
 		return self::$instance;
 	}
 
 	public function __construct(){}
-	
+
 	public static function isLoggedIn() {
 		return self::$loggedin;
 	}
-	
+
 	public function logout() {
 		if(isset($_COOKIE['hqdb'])) {
-			setcookie('hqdb','', time()-(3600 * 24));
+			setcookie(COOKIE_NAME, '', array(
+				'expires' => time() - (3600 * 24),
+				'path' => COOKIE_PATH,
+				'secure' => isset($GLOBALS['qdb_session_cookie_secure']) ? (bool) $GLOBALS['qdb_session_cookie_secure'] : false,
+				'httponly' => true,
+				'samesite' => 'Lax',
+			));
 		}
-		
+
 		session_destroy();
 		self::$loggedin = false;
 		return true;
 	}
-	
+
 	public function isAdmin() {
 		if(self::$user->isadmin == 1) {
 			return true;
 		}
 		return false;
 	}
-	
+
 	public function authenticate($user = '', $pass = '') {
 		//if user is logged in
 		if (isset($_SESSION['username']) && isset($_SESSION['password']) && $user == '' && $pass == '') {
@@ -85,7 +101,8 @@ class Sentinel {
 			}
 		} else {
 			//look up user in database and set session vars if authentic
-			if(self::$user->lookupUser($user, md5($pass))) {
+			if(self::$user->authenticatePassword($user, $pass)) {
+				session_regenerate_id(true);
 				$_SESSION['userid'] = self::$user->userid;
 				$_SESSION['username'] = self::$user->username;
 				$_SESSION['password'] = self::$user->password;

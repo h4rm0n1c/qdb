@@ -576,10 +576,16 @@ function changepass() {
 		if ($pass == $passchk) {
 			//if the password is not alphanumeric, is made of spaces or is not between 6 and 20 characters in length, error out
 			if (preg_match("/^[a-zA-Z0-9]+$/",$pass)&&!trim($pass)==''&&!(strlen($pass)<6||strlen($pass)>20)) {
-				$pass = db_escape(md5($pass));
+				$pass = db_escape(User::hashPassword($pass));
 				$sql = "UPDATE qdbusers SET password = '".$pass."' WHERE username = '".$username."' LIMIT 1;";
 				db_connect_query($sql);
-				setcookie("hqdb", "", time()-100);
+				setcookie(COOKIE_NAME, "", array(
+					'expires' => time() - 100,
+					'path' => COOKIE_PATH,
+					'secure' => isset($GLOBALS['qdb_session_cookie_secure']) ? (bool) $GLOBALS['qdb_session_cookie_secure'] : false,
+					'httponly' => true,
+					'samesite' => 'Lax',
+				));
 				header("Location: ./?admin");
 			}
 			else {

@@ -12,6 +12,38 @@ Author: Harrison Mclean
 
 License: Creative Commons
 */
+if (!function_exists('qdb_env')) {
+	function qdb_env($name, $default) {
+		$value = getenv($name);
+		return $value === false ? $default : $value;
+	}
+}
+
+$qdb_config = array(
+	'db_host' => qdb_env('QDB_DB_HOST', 'localhost'),
+	'db_user' => qdb_env('QDB_DB_USER', 'qdb_user'),
+	'db_pass' => qdb_env('QDB_DB_PASS', 'change_me'),
+	'db_name' => qdb_env('QDB_DB_NAME', 'qdb_userold'),
+	'session_cookie_path' => qdb_env('QDB_SESSION_COOKIE_PATH', '/hqdb/'),
+	'session_cookie_secure' => filter_var(qdb_env('QDB_SESSION_COOKIE_SECURE', 'false'), FILTER_VALIDATE_BOOLEAN),
+);
+
+$local_config_file = __DIR__ . '/local_config.php';
+if (is_readable($local_config_file)) {
+	$local_config = require $local_config_file;
+	if (is_array($local_config)) {
+		$qdb_config = array_merge($qdb_config, $local_config);
+	}
+}
+
+//Mysql Database Access Information
+$user = $qdb_config['db_user'];
+$pass = $qdb_config['db_pass'];
+$db = $qdb_config['db_name'];
+$host = $qdb_config['db_host'];
+$qdb_session_cookie_path = $qdb_config['session_cookie_path'];
+$qdb_session_cookie_secure = filter_var($qdb_config['session_cookie_secure'], FILTER_VALIDATE_BOOLEAN);
+
 include './includes/dbconnector.php';
 include './includes/user.php';
 include './includes/sentinel.php';
@@ -23,12 +55,6 @@ Quotes &copy; Submitters';
 
 //The Page banner
 $banner_l = 'AjaxQDB';
-
-//Mysql Database Access Information
-$user = "qdb_user";
-$pass = "change_me";
-$db = "qdb_userold";
-$host = "localhost";
 
 //Connect to database, execute query, and return result.
 //Now wraps around dbconnector class
