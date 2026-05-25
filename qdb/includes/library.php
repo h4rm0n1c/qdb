@@ -62,14 +62,15 @@ function do_admin($type, $qid) {
 
 	admin_session();
 	if(!checklogin()) {
-		die('Error: Insufficient Credentials to preform requested operation');
+		return array('status' => 403, 'errormsg' => 'Insufficient credentials to perform requested operation');
 	}
 
 	if(!isset($actions[$type])) {
-		die('Error: Invalid admin operation');
+		return array('status' => 400, 'errormsg' => 'Invalid admin operation');
 	}
 
 	$actions[$type]($qid);
+	return true;
 }
 
 function quote_sux($qid) {

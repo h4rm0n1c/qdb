@@ -1,7 +1,13 @@
 <?php
-include './global.php';
-include './includes/library.php';
+require_once __DIR__ . '/global.php';
+require_once __DIR__ . '/includes/library.php';
 //token();
+
+function admin_json_error($qid, $errormsg, $status) {
+	http_response_code($status);
+	echo json_encode(array('qid' => $qid, 'newscore' => 'none', 'error' => true, 'errormsg' => $errormsg));
+	exit;
+}
 
 $admin_actions = array('approve', 'reject', 'kill', 'unflag');
 $public_actions = array('rox', 'sox', 'sux');
@@ -51,22 +57,26 @@ switch($type) {
 	break;
 
 	case 'approve':
-		do_admin('approve', $qid);
+		$admin_result = do_admin('approve', $qid);
+		if ($admin_result !== true) { admin_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
 		$newscore = 'pending_';
 	break;
-	
+
 	case 'reject':
-		do_admin('kill', $qid);
+		$admin_result = do_admin('kill', $qid);
+		if ($admin_result !== true) { admin_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
 		$newscore = 'pending_';
 	break;
-	
+
 	case 'kill':
-		do_admin('kill', $qid);
+		$admin_result = do_admin('kill', $qid);
+		if ($admin_result !== true) { admin_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
 		$newscore = 'flagged_';
 	break;
-	
+
 	case 'unflag':
-		do_admin('unflag', $qid);
+		$admin_result = do_admin('unflag', $qid);
+		if ($admin_result !== true) { admin_json_error($qid, $admin_result['errormsg'], $admin_result['status']); }
 		$newscore = 'flagged_';
 	break;
 
