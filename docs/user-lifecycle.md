@@ -10,7 +10,11 @@ After setup, the super-admin signs in and creates invited users from the admin p
 
 New users receive a temporary password out-of-band from the super-admin. They should sign in once with that temporary password and immediately change it from the Change Password panel. Normal users can only change their own password.
 
-There is no full Manage Users interface yet. Do not enable public registration.
+The bootstrap super-admin has a conservative Manage Users panel for existing accounts. It can edit username, email, administrator status, enabled state, and reset a user's password to a new temporary password.
+
+Deleting users is intentionally not implemented. If an account should be retired, set `enabled=0`.
+
+Do not enable public registration.
 
 ## State Machine
 
@@ -25,14 +29,14 @@ BOOTSTRAP_ADMIN_CREATED
 
 ## Future States
 
-These states are intended for a later Manage Users pass:
+These states are intended for later lifecycle work:
 
-- `DISABLED_USER`
 - `PASSWORD_RESET_REQUIRED`
 - `DELETED_USER` or `RETIRED_USER`, if account retirement is ever implemented
 
 ## Current Notes
 
 - `qdbusers.enabled=0` users are refused during password authentication and session reload.
-- `userid=1` remains the super-admin convention and should not be demoted by future user-management tooling.
+- `userid=1` remains the super-admin convention. The Manage Users panel blocks disabling or demoting this account.
+- Password reset for `userid=1` is allowed only while logged in as `userid=1`.
 - Temporary passwords are not logged or emailed by the application.

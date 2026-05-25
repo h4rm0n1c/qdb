@@ -25,6 +25,16 @@ class User {
 	}
 
 	public function loadUserById($userid) {
+		$array = $this->getUserById($userid);
+		if ($array === false || (int) $array['enabled'] !== 1) {
+			return false;
+		}
+
+		$this->loadUserFromRow($array);
+		return true;
+	}
+
+	public function getUserById($userid) {
 		$userid = (int) $userid;
 		if ($userid < 1) {
 			return false;
@@ -35,12 +45,7 @@ class User {
 			return false;
 		}
 
-		$array = self::$db->fetchArray($result);
-		if (isset($array['enabled']) && (int) $array['enabled'] !== 1) {
-			return false;
-		}
-		$this->loadUserFromRow($array);
-		return true;
+		return self::$db->fetchArray($result);
 	}
 
 	private function loadUserFromRow($array) {
@@ -74,24 +79,52 @@ class User {
 		db_prepared_query("INSERT INTO qdbusers (username, `password`, email, isadmin, enabled) VALUES (?, ?, ?, ?, 1)", 'sssi', array($username, $hash, $email, $isadmin));
 	}
 
-	public function updateUser($username = '', $password = '', $email = '', $isadmin = 0, $id = '') {
+	public function updateUser($username = '', $password = '', $email = '', $isadmin = 0, $id = '', $enabled = null) {
 		if($id == '') {
 			$id = $this->userid;
 		}
 		$id = (int) $id;
+		if ($id < 1) {
+			return false;
+		}
+
 		$username = trim($username);
 		$email = trim($email);
 		$isadmin = (int) $isadmin === 1 ? 1 : 0;
+		$enabled = $enabled === null ? null : ((int) $enabled === 1 ? 1 : 0);
 		if ($id === 1) {
 			$isadmin = 1;
+			$enabled = 1;
 		}
 
 		if(trim($password) == '') {
-			db_prepared_query("UPDATE qdbusers SET `username` = ?, `email` = ?, `isadmin` = ? WHERE userid = ?", 'ssii', array($username, $email, $isadmin, $id));
+			if ($enabled === null) {
+				db_prepared_query("UPDATE qdbusers SET `username` = ?, `email` = ?, `isadmin` = ? WHERE userid = ?", 'ssii', array($username, $email, $isadmin, $id));
+			}
+			else {
+				db_prepared_query("UPDATE qdbusers SET `username` = ?, `email` = ?, `isadmin` = ?, `enabled` = ? WHERE userid = ?", 'ssiii', array($username, $email, $isadmin, $enabled, $id));
+			}
 		} else {
 			$hash = self::hashPassword($password);
-			db_prepared_query("UPDATE qdbusers SET `username` = ?, `password` = ?, `email` = ?, `isadmin` = ? WHERE userid = ?", 'sssii', array($username, $hash, $email, $isadmin, $id));
+			if ($enabled === null) {
+				db_prepared_query("UPDATE qdbusers SET `username` = ?, `password` = ?, `email` = ?, `isadmin` = ? WHERE userid = ?", 'sssii', array($username, $hash, $email, $isadmin, $id));
+			}
+			else {
+				db_prepared_query("UPDATE qdbusers SET `username` = ?, `password` = ?, `email` = ?, `isadmin` = ?, `enabled` = ? WHERE userid = ?", 'sssiii', array($username, $hash, $email, $isadmin, $enabled, $id));
+			}
 		}
+
+		return true;
+	}
+
+	public function resetPassword($userid, $temporaryPassword) {
+		$userid = (int) $userid;
+		if ($userid < 1) {
+			return false;
+		}
+
+		$hash = self::hashPassword($temporaryPassword);
+		return db_prepared_query("UPDATE qdbusers SET `password` = ? WHERE userid = ? LIMIT 1", 'si', array($hash, $userid));
 	}
 
 	public function lookupUser($user = '', $pass = '') {
@@ -160,7 +193,7 @@ class User {
 		if($select_options == true) {
 			$query = "SELECT userid,username FROM qdbusers";
 		} else {
-			$query = "SELECT userid,username,email,enabled FROM qdbusers";
+			$query = "SELECT userid,username,email,isadmin,enabled FROM qdbusers ORDER BY userid ASC";
 		}
 
 		$result = db_prepared_query($query);

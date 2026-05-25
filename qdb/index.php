@@ -144,6 +144,12 @@ default:
 		break;
 	}
 
+	if(qs_match('manageusers')) {
+		$content = manageusers();
+		$banner_r = "Manage Users";
+		break;
+	}
+
 	else {
 		$banner_r = 'Individual Quote';
 		$content = single_quote();

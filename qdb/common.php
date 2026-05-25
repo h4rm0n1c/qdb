@@ -562,8 +562,9 @@ function adminpanel() {
 	$return_string = '<script type="text/javascript">window.qdbCsrfToken = '.json_encode(qdb_csrf_token()).';</script>';
 
 	if(issuperadmin()) {
-		$links .= '<a href="#adduser">Add User</a> | ';
+		$links .= '<a href="#adduser">Add User</a> | <a href="#manageusers">Manage Users</a> | ';
 		$return_string .= admin_adduser();
+		$return_string .= admin_manageusers();
 	}
 	$links .= '<a href="#changepass">Change Password</a> | <a href="#news">News</a> | <a href="#pending">Pending Quotes</a> | <a href="#flagged">Flagged Quotes</a>';
 	$return_string .= admin_changepass();
@@ -772,6 +773,111 @@ function adduser() {
 			}
 		}
 	}
+}
+
+function admin_manageusers($message = '', $is_error = false) {
+	if(!checklogin() || !issuperadmin()) {
+		return '';
+	}
+
+	$users = Sentinel::$user->getAllUsers();
+	$return_string = '<br /><fieldset id="manageusers"><legend>Manage Users <a href="#top" >[Top]</a></legend>';
+	if($message !== '') {
+		$return_string .= '<p>'.($is_error ? '<b>Error</b>: ' : '').qdb_h($message).'</p>';
+	}
+	$return_string .= '<p>No delete action is available. Disable an account to retire it.</p>';
+	$return_string .= '<form action="./?manageusers" method="post">'.qdb_csrf_hidden_input().'<table width="100%" cellpadding="3" cellspacing="0" border="1">
+		<tr>
+			<th>User ID</th>
+			<th>Username</th>
+			<th>Email</th>
+			<th>Admin</th>
+			<th>Enabled</th>
+			<th>Reset Password</th>
+			<th>Actions</th>
+		</tr>';
+
+	foreach($users as $userrow) {
+		$userid = (int) $userrow['userid'];
+		$isadmin = (int) $userrow['isadmin'];
+		$enabled = (int) $userrow['enabled'];
+		$return_string .= '<tr>';
+		$return_string .= '<td>'.$userid.'</td>';
+		$return_string .= '<td><input type="text" name="username['.$userid.']" size="16" class="basicinput" value="'.qdb_h($userrow['username']).'"></td>';
+		$return_string .= '<td><input type="text" name="email['.$userid.']" size="28" class="basicinput" value="'.qdb_h($userrow['email']).'"></td>';
+		if($userid === 1) {
+			$return_string .= '<td>Yes<input type="hidden" name="isadmin['.$userid.']" value="1"></td>';
+			$return_string .= '<td>Yes<input type="hidden" name="enabled['.$userid.']" value="1"></td>';
+		}
+		else {
+			$return_string .= '<td><select name="isadmin['.$userid.']"><option value="0"'.($isadmin === 0 ? ' selected' : '').'>No</option><option value="1"'.($isadmin === 1 ? ' selected' : '').'>Yes</option></select></td>';
+			$return_string .= '<td><select name="enabled['.$userid.']"><option value="0"'.($enabled === 0 ? ' selected' : '').'>No</option><option value="1"'.($enabled === 1 ? ' selected' : '').'>Yes</option></select></td>';
+		}
+		$return_string .= '<td>Temporary: <input type="password" name="resetpass['.$userid.']" size="14" class="basicinput"><br />Repeat: <input type="password" name="resetpasschk['.$userid.']" size="14" class="basicinput"></td>';
+		$return_string .= '<td><button type="submit" name="save_user" class="basicsubmit" value="'.$userid.'">Save</button></td>';
+		$return_string .= '</tr>';
+	}
+
+	$return_string .= '</table></form></fieldset>';
+	return $return_string;
+}
+
+function manageusers() {
+	if(!checklogin() || !issuperadmin()) {
+		header('Refresh: 0;URL=./');
+		return 'Stop trying to hack, you suck.';
+	}
+
+	if(!isset($_POST['save_user'])) {
+		return admin_manageusers();
+	}
+
+	if(!qdb_csrf_validate(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
+		return admin_manageusers('Invalid security token, please try again.', true);
+	}
+
+	$userid = isset($_POST['save_user']) ? (int) $_POST['save_user'] : 0;
+	$username = isset($_POST['username'][$userid]) ? trim($_POST['username'][$userid]) : '';
+	$email = isset($_POST['email'][$userid]) ? trim($_POST['email'][$userid]) : '';
+	$isadmin = isset($_POST['isadmin'][$userid]) && (int) $_POST['isadmin'][$userid] === 1 ? 1 : 0;
+	$enabled = isset($_POST['enabled'][$userid]) && (int) $_POST['enabled'][$userid] === 1 ? 1 : 0;
+	$resetpass = isset($_POST['resetpass'][$userid]) ? $_POST['resetpass'][$userid] : '';
+	$resetpasschk = isset($_POST['resetpasschk'][$userid]) ? $_POST['resetpasschk'][$userid] : '';
+
+	if($userid < 1 || Sentinel::$user->getUserById($userid) === false) {
+		return admin_manageusers('User not found.', true);
+	}
+	if($userid === 1 && ($isadmin !== 1 || $enabled !== 1)) {
+		return admin_manageusers('The bootstrap super-admin cannot be demoted or disabled.', true);
+	}
+	if($username === '') {
+		return admin_manageusers('Username is required.', true);
+	}
+	if($email === '') {
+		return admin_manageusers('Email is required.', true);
+	}
+	if(Sentinel::$user->unameExists($username, $userid)) {
+		return admin_manageusers('Username already exists.', true);
+	}
+	if(($resetpass !== '' || $resetpasschk !== '') && ($resetpass === '' || $resetpasschk === '')) {
+		return admin_manageusers('Both temporary password fields are required when resetting a password.', true);
+	}
+	if($resetpass !== '' && $resetpass !== $resetpasschk) {
+		return admin_manageusers('Temporary passwords entered do not match each-other.', true);
+	}
+	if($resetpass !== '' && (strlen($resetpass) < 8 || strlen($resetpass) > 128)) {
+		return admin_manageusers('Temporary password must be between 8 and 128 characters long.', true);
+	}
+	if($userid === 1 && (int) $_SESSION['userid'] !== 1) {
+		return admin_manageusers('Only the bootstrap super-admin can reset the bootstrap super-admin password.', true);
+	}
+
+	Sentinel::$user->updateUser($username, '', $email, $isadmin, $userid, $enabled);
+	if($resetpass !== '') {
+		Sentinel::$user->resetPassword($userid, $resetpass);
+	}
+
+	return admin_manageusers('User updated successfully.');
 }
 
 //List the administrators and the moderators (the administrator has a userid of 1, same thing as the "super-admin")

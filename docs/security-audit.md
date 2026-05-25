@@ -2,7 +2,7 @@
 
 ## Executive summary
 
-This is a legacy LAN-only PHP quote database. It is provisionally functional on PHP 8, but it should not be exposed to the public internet. Slice 1 hardens authentication, session cookies, and local configuration without changing visible site behaviour. Slice 2A makes admin quote moderation actions POST-only and CSRF-protected. Slice 2B adds CSRF protection to the remaining admin forms in `qdb/common.php`. Slice 2C removes JSONP from vote actions and returns plain JSON. The legacy web dumper has been retired in favour of CLI-only import tooling. Output rendering now has explicit transitional helpers, but full database content normalization is still deferred. SQL cleanup has started with admin mutation, vote, search, quote listing, and user lifecycle paths.
+This is a legacy LAN-only PHP quote database. It is provisionally functional on PHP 8, but it should not be exposed to the public internet. Slice 1 hardens authentication, session cookies, and local configuration without changing visible site behaviour. Slice 2A makes admin quote moderation actions POST-only and CSRF-protected. Slice 2B adds CSRF protection to the remaining admin forms in `qdb/common.php`. Slice 2C removes JSONP from vote actions and returns plain JSON. The legacy web dumper has been retired in favour of CLI-only import tooling. Output rendering now has explicit transitional helpers, but full database content normalization is still deferred. SQL cleanup has started with admin mutation, vote, search, quote listing, and user lifecycle paths. User management now has a conservative super-admin-only panel.
 
 ## Confirmed findings
 
@@ -22,6 +22,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 - Partially addressed: SQL is largely string-built across `qdb/common.php`, `qdb/includes/library.php`, and `qdb/includes/user.php`. `DbConnector::queryf()` escapes strings but is not a prepared-statement API and many queries do not use it. Admin news mutations, admin password change, flagged moderation, vote/moderation mutations, search terms, public quote listing/read paths, and `User` class account lookup/mutation paths now use prepared statements or static typed queries.
 - `qdb/includes/sentinel.php::getInstance()` had session cookie hardening commented out and did not regenerate the session ID after login.
 - Addressed: `qdb/common.php::adduser()` created new accounts with the fixed initial password `password`. Super-admins now provide a temporary password when creating invited users.
+- Partially addressed: full user management was missing. `userid=1` can now manage existing users, disable accounts, and reset temporary passwords. Destructive delete remains intentionally absent.
 - `qdb/includes/library.php::token()` creates a token but is unused/commented out in `qdb/vote.php`.
 - `qdb/common.php::admin_pending()` can load broad moderation data and retains vestigial mod assignment behaviour.
 
@@ -44,6 +45,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 - Search SQL/performance slice: `qdb/common.php::search()` now normalizes and validates search terms, uses prepared FULLTEXT queries, and caps result counts at 50 rows.
 - SQL cleanup slice 3: `qdb/common.php` public quote read/listing paths for single quote, latest, queue, random, top, bottom, and browse now use prepared statements or static safe queries with typed IDs/page offsets.
 - User lifecycle slice A: `docs/user-lifecycle.md` documents the non-public-registration account lifecycle. `qdb/includes/user.php` account lookup/mutation methods now use prepared statements, `enabled=0` users are refused during login/session reload, and invited-user creation now requires a super-admin-provided temporary password instead of a fixed default.
+- User lifecycle slice B: `qdb/common.php` now includes a super-admin-only Manage Users panel for viewing/editing existing users, toggling `isadmin`/`enabled`, and resetting passwords to temporary values. `userid=1` cannot be disabled or demoted, and no delete action was added.
 
 ## Recommended patch slices
 
@@ -55,7 +57,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 6. Partially completed: admin mutation SQL cleanup slice 1, vote/library SQL cleanup slice 2, search SQL cleanup, quote listing SQL cleanup slice 3, and User class SQL cleanup are done. Remaining SQL targets include `qdb/common.php::admin_pending()`, static count/news/admin-list queries in `qdb/common.php`, and any remaining direct string-built SQL in `qdb/common.php`.
 7. Moderation queue pagination/limits and cleanup of mod assignment behaviour.
 8. Performance follow-up: consider pagination for search/browse/mod queues and optional index review beyond the existing `qdb.quote` FULLTEXT index.
-9. Deferred: full Manage Users UI, including explicit disabled-user controls, password reset workflow, and account retirement policy.
+9. Partially completed: Manage Users UI exists for the bootstrap super-admin, including disabled-user controls and password reset. Deferred user lifecycle items include optional audit logging, optional forced password reset flag, and an account retirement policy beyond `enabled=0`.
 
 ## Manual smoke test checklist
 
