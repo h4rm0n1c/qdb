@@ -785,11 +785,9 @@ function qs_match($string) {
 }
 
 function mquotes($tostrip) {
-	if (get_magic_quotes_gpc()) {
+	if (function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc()) {
 		return stripslashes($tostrip);
 	}
-	else {
-		return $tostrip;
-	}
+	return $tostrip;
 }
 ?>
