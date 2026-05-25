@@ -26,6 +26,7 @@ $qdb_config = array(
 	'db_name' => qdb_env('QDB_DB_NAME', 'qdb_userold'),
 	'session_cookie_path' => qdb_env('QDB_SESSION_COOKIE_PATH', '/hqdb/'),
 	'session_cookie_secure' => filter_var(qdb_env('QDB_SESSION_COOKIE_SECURE', 'false'), FILTER_VALIDATE_BOOLEAN),
+	'qdb_debug_auth' => filter_var(qdb_env('QDB_DEBUG_AUTH', 'false'), FILTER_VALIDATE_BOOLEAN),
 );
 
 $local_config_file = __DIR__ . '/local_config.php';
@@ -43,6 +44,7 @@ $db = $qdb_config['db_name'];
 $host = $qdb_config['db_host'];
 $qdb_session_cookie_path = $qdb_config['session_cookie_path'];
 $qdb_session_cookie_secure = filter_var($qdb_config['session_cookie_secure'], FILTER_VALIDATE_BOOLEAN);
+$qdb_debug_auth = filter_var($qdb_config['qdb_debug_auth'], FILTER_VALIDATE_BOOLEAN);
 
 require_once __DIR__ . '/includes/dbconnector.php';
 require_once __DIR__ . '/includes/user.php';
