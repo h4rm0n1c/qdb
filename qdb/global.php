@@ -66,7 +66,11 @@ function db_connect_query($sql) {
 	if(!isset($GLOBALS['dbcon'])) {
 		$GLOBALS['dbcon'] = DbConnector::getInstance();
 	}
-	
+
 	return $GLOBALS['dbcon']->query($sql);
+}
+
+function db_prepared_query($sql, $types = '', $params = array()) {
+	return DbConnector::getInstance()->preparedQuery($sql, $types, $params);
 }
 ?>

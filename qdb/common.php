@@ -19,10 +19,6 @@ function db_escape($value) {
 	return mysqli_real_escape_string(DbConnector::$link, $value);
 }
 
-function db_prepared_query($sql, $types = '', $params = array()) {
-	return DbConnector::getInstance()->preparedQuery($sql, $types, $params);
-}
-
 function qdb_h($value) {
 	return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
