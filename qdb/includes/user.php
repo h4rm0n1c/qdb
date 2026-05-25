@@ -6,6 +6,7 @@ class User {
 	public $password;
 	public $email;
 	public $isadmin;
+	public $enabled;
 
 	//Database var
 	public static $db;
@@ -29,22 +30,26 @@ class User {
 			return false;
 		}
 
-		$result = self::$db->queryf("SELECT userid, username, `password`, email, isadmin FROM qdbusers WHERE userid = '%d' LIMIT 1", $userid);
+		$result = db_prepared_query("SELECT userid, username, `password`, email, isadmin, enabled FROM qdbusers WHERE userid = ? LIMIT 1", 'i', array($userid));
 		if(self::$db->getNumRows($result) < 1) {
 			return false;
 		}
 
 		$array = self::$db->fetchArray($result);
+		if (isset($array['enabled']) && (int) $array['enabled'] !== 1) {
+			return false;
+		}
 		$this->loadUserFromRow($array);
 		return true;
 	}
 
 	private function loadUserFromRow($array) {
-		$this->userid = $array['userid'];
+		$this->userid = (int) $array['userid'];
 		$this->username = $array['username'];
 		$this->password = $array['password'];
 		$this->email = $array['email'];
-		$this->isadmin = $array['isadmin'];
+		$this->isadmin = (int) $array['isadmin'];
+		$this->enabled = isset($array['enabled']) ? (int) $array['enabled'] : 1;
 	}
 
 	public static function hashPassword($password) {
@@ -56,28 +61,47 @@ class User {
 	}
 
 	private function updatePasswordHash($userid, $hash) {
-		self::$db->queryf("UPDATE qdbusers SET `password` = '%s' WHERE userid = '%d'", $hash, $userid);
+		$userid = (int) $userid;
+		db_prepared_query("UPDATE qdbusers SET `password` = ? WHERE userid = ?", 'si', array($hash, $userid));
 	}
 
 	public function addUser($username, $password, $email, $isadmin) {
-		self::$db->queryf("INSERT INTO qdbusers (username, `password`, email, isadmin) VALUES ('%s', '%s', '%s', '%d')", $username, self::hashPassword($password), $email, $isadmin);
+		$username = trim($username);
+		$email = trim($email);
+		$isadmin = (int) $isadmin === 1 ? 1 : 0;
+		$hash = self::hashPassword($password);
+
+		db_prepared_query("INSERT INTO qdbusers (username, `password`, email, isadmin, enabled) VALUES (?, ?, ?, ?, 1)", 'sssi', array($username, $hash, $email, $isadmin));
 	}
 
 	public function updateUser($username = '', $password = '', $email = '', $isadmin = 0, $id = '') {
 		if($id == '') {
 			$id = $this->userid;
 		}
+		$id = (int) $id;
+		$username = trim($username);
+		$email = trim($email);
+		$isadmin = (int) $isadmin === 1 ? 1 : 0;
+		if ($id === 1) {
+			$isadmin = 1;
+		}
+
 		if(trim($password) == '') {
-			self::$db->queryf("UPDATE qdbusers SET `username` = '%s', `email` = '%s', `isadmin` = '%d' WHERE userid = '%d'", $username, $email, $isadmin, $id);
+			db_prepared_query("UPDATE qdbusers SET `username` = ?, `email` = ?, `isadmin` = ? WHERE userid = ?", 'ssii', array($username, $email, $isadmin, $id));
 		} else {
-			self::$db->queryf("UPDATE qdbusers SET `username` = '%s', `password` = '%s', `email` = '%s',  `isadmin` = '%d' WHERE userid = '%d'", $username, self::hashPassword($password), $email, $isadmin, $id);
+			$hash = self::hashPassword($password);
+			db_prepared_query("UPDATE qdbusers SET `username` = ?, `password` = ?, `email` = ?, `isadmin` = ? WHERE userid = ?", 'sssii', array($username, $hash, $email, $isadmin, $id));
 		}
 	}
 
 	public function lookupUser($user = '', $pass = '') {
-		$result = self::$db->queryf("SELECT * FROM qdbusers WHERE username = '%s' LIMIT 1", $user);
+		$user = trim($user);
+		$result = db_prepared_query("SELECT userid, username, `password`, email, isadmin, enabled FROM qdbusers WHERE username = ? LIMIT 1", 's', array($user));
 		if (self::$db->getNumRows($result) > 0) {
 			$array = self::$db->fetchArray($result);
+			if (isset($array['enabled']) && (int) $array['enabled'] !== 1) {
+				return false;
+			}
 			if (!hash_equals($array['password'], $pass)) {
 				return false;
 			}
@@ -90,12 +114,16 @@ class User {
 	}
 
 	public function authenticatePassword($user = '', $pass = '') {
-		$result = self::$db->queryf("SELECT * FROM qdbusers WHERE username = '%s' LIMIT 1", $user);
+		$user = trim($user);
+		$result = db_prepared_query("SELECT userid, username, `password`, email, isadmin, enabled FROM qdbusers WHERE username = ? LIMIT 1", 's', array($user));
 		if (self::$db->getNumRows($result) < 1) {
 			return false;
 		}
 
 		$array = self::$db->fetchArray($result);
+		if (isset($array['enabled']) && (int) $array['enabled'] !== 1) {
+			return false;
+		}
 		$storedHash = $array['password'];
 
 		if (password_verify($pass, $storedHash)) {
@@ -120,7 +148,9 @@ class User {
 	}
 
 	public function unameExists($user = '', $exclude = 0) {
-		$result = self::$db->queryf("SELECT userid FROM qdbusers WHERE (username = '%s' AND userid != '%d')", $user, $exclude);
+		$user = trim($user);
+		$exclude = (int) $exclude;
+		$result = db_prepared_query("SELECT userid FROM qdbusers WHERE username = ? AND userid != ?", 'si', array($user, $exclude));
 		return (self::$db->getNumRows($result) > 0);
 	}
 
@@ -133,7 +163,7 @@ class User {
 			$query = "SELECT userid,username,email,enabled FROM qdbusers";
 		}
 
-		$result = self::$db->query($query);
+		$result = db_prepared_query($query);
 
 		while($row = self::$db->fetchArray($result)) {
 			if($select_options == true) {

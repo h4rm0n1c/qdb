@@ -158,9 +158,12 @@ function qdb_csrf_hidden_input() {
 	return '<input type="hidden" name="csrf" value="' . htmlspecialchars(qdb_csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">';
 }
 
-//If the current user is an Administrator (their isadmin field is set to 1)
+//If the current user is the bootstrap super-admin.
 function issuperadmin() {
-	return $GLOBALS['sentinel']->isAdmin();
+	return Sentinel::isLoggedIn()
+		&& isset($_SESSION['userid'])
+		&& (int) $_SESSION['userid'] === 1
+		&& $GLOBALS['sentinel']->isAdmin();
 }
 
 //Checks to see if the user is logged in, returns 1 if they are, 0 if they are not.

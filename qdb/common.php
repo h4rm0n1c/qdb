@@ -700,6 +700,21 @@ function admin_adduser() {
 								</tr>
 								<tr>
 									<td align="right">
+										Temporary Password: <input type="password" name="newpass" size="28" class="basicinput">
+									</td>
+								</tr>
+								<tr>
+									<td align="right">
+										Repeat Temporary Password: <input type="password" name="newpasschk" size="28" class="basicinput">
+									</td>
+								</tr>
+								<tr>
+									<td>
+										Give this to the invited user out-of-band; they should change it after first login.
+									</td>
+								</tr>
+								<tr>
+									<td align="right">
 										<input type="submit" name="submit" class="basicsubmit" value="Add User">
 									</td>
 								</tr>
@@ -722,9 +737,10 @@ function adduser() {
 				return '<b>Error</b>: Invalid security token, please try again.';
 			}
 			$nUSER = trim($_POST['newuser']);
-			$nPASSWORD = 'password';
 			$nEMAIL = trim($_POST['email']);
 			$nISADMIN = isset($_POST['isadmin']) && (int) $_POST['isadmin'] === 1 ? 1 : 0;
+			$nPASSWORD = isset($_POST['newpass']) ? $_POST['newpass'] : '';
+			$nPASSWORDCHK = isset($_POST['newpasschk']) ? $_POST['newpasschk'] : '';
 			if($nUSER === ''){
 				header('Refresh: 3;URL=./?admin');
 				return '<b>Error</b>: No Username Set';
@@ -733,10 +749,26 @@ function adduser() {
 				header('Refresh: 3;URL=./?admin');
 				return '<b>Error</b>: No Email Set';
 			}
+			elseif($nPASSWORD === '' || $nPASSWORDCHK === ''){
+				header('Refresh: 3;URL=./?admin');
+				return '<b>Error</b>: Temporary password is required';
+			}
+			elseif($nPASSWORD !== $nPASSWORDCHK){
+				header('Refresh: 3;URL=./?admin');
+				return '<b>Error</b>: Temporary passwords entered do not match each-other';
+			}
+			elseif(strlen($nPASSWORD) < 8 || strlen($nPASSWORD) > 128){
+				header('Refresh: 3;URL=./?admin');
+				return '<b>Error</b>: Temporary password must be between 8 and 128 characters long';
+			}
+			elseif(Sentinel::$user->unameExists($nUSER)){
+				header('Refresh: 3;URL=./?admin');
+				return '<b>Error</b>: Username already exists';
+			}
 			else{
 				Sentinel::$user->addUser($nUSER, $nPASSWORD, $nEMAIL, $nISADMIN);
 				header('Refresh: 3;URL=./?admin');
-				return 'Username: '.$nUSER.' Was added sucessfully';
+				return 'Username: '.qdb_h($nUSER).' was added successfully';
 			}
 		}
 	}
