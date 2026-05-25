@@ -107,7 +107,11 @@ function qdb_normalize_search_term($value, &$error) {
 
 //Returns true (1) when the supplied quote id is pending (Approved field is set to 0)
 function isquotepending($id) {
-	$result = db_connect_query("SELECT id FROM qdb WHERE approved = 0 AND id = ".$id);
+	$id = (int) $id;
+	if($id < 1) {
+		return 0;
+	}
+	$result = db_prepared_query("SELECT id FROM qdb WHERE approved = 0 AND id = ? LIMIT 1", 'i', array($id));
 	while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
 		return 1;
 	}
@@ -138,14 +142,20 @@ function count_karma() {
 
 //Returns a string containing a single html formatted quote if it is approved
 function single_quote() {
-	$quote_id = round($_SERVER['QUERY_STRING']);
-	$query = "SELECT * FROM qdb WHERE id = ".$quote_id;
+	$query_string = isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '';
+	$quote_id = ctype_digit($query_string) ? (int) $query_string : 0;
+	if($quote_id < 1) {
+		return '<b>The Specified Quote either does not exist or has been Rejected by the Moderators</b>';
+	}
+
 	if (!isquotepending($quote_id)) {
-		if (format_quote($query) == '') {
+		$result = db_prepared_query("SELECT * FROM qdb WHERE id = ?", 'i', array($quote_id));
+		$quote = format_quote_result($result);
+		if ($quote == '') {
 			return '<b>The Specified Quote either does not exist or has been Rejected by the Moderators</b>';
 		}
 		else {
-			return format_quote($query);
+			return $quote;
 		}
 	}
 	else {
@@ -176,17 +186,15 @@ $nav = '
 
 //Returns the latest 50 approved quotes
 function latest() {
-$query = "SELECT * FROM qdb WHERE approved = 1 ORDER BY id DESC LIMIT 51";
-return format_quote($query);
+	return format_quote_result(db_prepared_query("SELECT * FROM qdb WHERE approved = 1 ORDER BY id DESC LIMIT 51"));
 }
 
 function queue($pending) {
-	
+
 	$return_data = "<blockquote><tt>* <b>This is the submission queue, no it's not finished yet...</b></tt></blockquote><br />";
-	
+
 	if($pending > 0) {
-		$query = "SELECT * FROM `qdb` WHERE approved = 0 ORDER BY rand() ASC LIMIT 50;";
-		$return_data .= format_quote($query);
+		$return_data .= format_quote_result(db_prepared_query("SELECT * FROM qdb WHERE approved = 0 ORDER BY rand() ASC LIMIT 50"));
 	} else {
 		$return_data .= "No Pending Quotes Found";
 	}
@@ -237,47 +245,41 @@ function added() {
 //Returns 50 randomly selected, approved quotes
 //NOTE: Limited to one quote because of the CPU load truly randomised quotes create
 function random() {
-	$query = "SELECT * FROM `qdb` AS r1 JOIN (SELECT (RAND() * (SELECT MAX(id) FROM `qdb`)) AS rid) AS r2 WHERE r1.id >= r2.rid AND approved = 1 ORDER BY r1.id ASC LIMIT 1;";
-	
-	return format_quote($query);
+	return format_quote_result(db_prepared_query("SELECT * FROM qdb AS r1 JOIN (SELECT (RAND() * (SELECT MAX(id) FROM qdb)) AS rid) AS r2 WHERE r1.id >= r2.rid AND approved = 1 ORDER BY r1.id ASC LIMIT 1"));
 }
 
 //Returns 50 randomly selected, approved quotes with a score greater than zero
 //NOTE: Limited to one quote because of the CPU load truly randomised quotes create
 function random1($approved) {
-	$row = rand(0,($approved - 1));
-	$query  = "SELECT * FROM qdb AS r1 JOIN (SELECT (RAND() * (SELECT MAX(id) FROM qdb)) AS rid) AS r2 WHERE r1.id >= r2.rid AND approved = 1 AND rating > 0 ORDER BY r1.id ASC LIMIT 1;";
-	return format_quote($query);
+	return format_quote_result(db_prepared_query("SELECT * FROM qdb AS r1 JOIN (SELECT (RAND() * (SELECT MAX(id) FROM qdb)) AS rid) AS r2 WHERE r1.id >= r2.rid AND approved = 1 AND rating > 0 ORDER BY r1.id ASC LIMIT 1"));
 }
 
 //Returns the top 100 rated quotes (ordered by each quote's rating field)
 function top100() {
-	$query = "SELECT * FROM qdb WHERE approved = 1 AND rating >0 ORDER BY rating desc LIMIT 100";
-	return format_quote($query);
+	return format_quote_result(db_prepared_query("SELECT * FROM qdb WHERE approved = 1 AND rating > 0 ORDER BY rating desc LIMIT 100"));
 }
 
 //Returns the top 50 rated quotes (ordered by each quote's rating field)
 function top50() {
-	$query = "SELECT * FROM qdb WHERE approved = 1 AND rating >0 ORDER BY rating desc LIMIT 50";
-	return format_quote($query);
+	return format_quote_result(db_prepared_query("SELECT * FROM qdb WHERE approved = 1 AND rating > 0 ORDER BY rating desc LIMIT 50"));
 }
 
 //Returns the bottom 50 rated quotes (ordered by each quote's rating field)
 function bottom() {
-	$query = "SELECT * FROM qdb WHERE approved = 1 AND rating <1 ORDER BY rating asc LIMIT 50";
-	return format_quote($query);
+	return format_quote_result(db_prepared_query("SELECT * FROM qdb WHERE approved = 1 AND rating < 1 ORDER BY rating asc LIMIT 50"));
 }
 
 
 //Returns the browse quotes page as a html formatted string
 function browse($approved) {
 	//Get the current browse page
-	$browsepage = @$_GET['p'];
+	$approved = (int) $approved;
+	$browsepage = isset($_GET['p']) ? (int) $_GET['p'] : 0;
 
 	//If no page was specified
-	if ($browsepage == '' || $browsepage == 0) {
-		if (@$_GET['browse'] != '') {
-			$browsepage = @$_GET['browse'];
+	if ($browsepage < 1) {
+		if (isset($_GET['browse']) && $_GET['browse'] != '') {
+			$browsepage = (int) $_GET['browse'];
 		}
 		else {
 			$browsepage = 1;
@@ -292,6 +294,15 @@ function browse($approved) {
 
 	//Calculate the number of pages
 	$pagecount = ceil($rowcount / 50);
+	if($pagecount < 1) {
+		$pagecount = 1;
+	}
+	if($browsepage < 1) {
+		$browsepage = 1;
+	}
+	if($browsepage > $pagecount) {
+		$browsepage = $pagecount;
+	}
 
 	//Init the string for storing the page links, I do this so I can put one at the top of the page
 	//and one at the bottom of the page.
@@ -364,7 +375,7 @@ function browse($approved) {
 	$offset = ($browsepage - 1) * 50;
 
 	//Retrieve quotes based on quote offset
-	$return_string .= format_quote("SELECT * FROM qdb WHERE approved = 1 ORDER BY id asc LIMIT $offset,50");
+	$return_string .= format_quote_result(db_prepared_query("SELECT * FROM qdb WHERE approved = 1 ORDER BY id asc LIMIT ?, 50", 'i', array($offset)));
 
 	//Dump it all back to the function that called me
 	return $page_nav_string.$page_dropdown.$return_string.$page_nav_string;
