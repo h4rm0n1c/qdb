@@ -19,6 +19,10 @@ function db_escape($value) {
 	return mysqli_real_escape_string(DbConnector::$link, $value);
 }
 
+function db_prepared_query($sql, $types = '', $params = array()) {
+	return DbConnector::getInstance()->preparedQuery($sql, $types, $params);
+}
+
 function qdb_h($value) {
 	return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
@@ -562,8 +566,8 @@ function admin_flagged() {
 		<div style="max-height: 400px; overflow: auto; border: 1px solid #000000; padding: 5px;">
 	';
 
-	$adminid = $_SESSION['userid'];
-	$result = db_connect_query("SELECT * FROM qdb WHERE flagged = 1 and approved = 1 AND modid = '$adminid'");
+	$adminid = (int) $_SESSION['userid'];
+	$result = db_prepared_query("SELECT * FROM qdb WHERE flagged = 1 and approved = 1 AND modid = ?", 'i', array($adminid));
 
 	while ( $row = mysqli_fetch_array($result, MYSQLI_ASSOC) ) {
 		$return_string .= '<div id="flagged_'.$row['id'].'" class="flagged"><p class="quote"><b>#'.$row['id'].'</b>&nbsp;<a href="#" onclick="return kill('.$row['id'].');" class="qa">[Kill]</a>'."\n".'<a href="#" onclick="return unflag('.$row['id'].');" class="qa">[UnFlag]</a>'."\n".'</p>';
@@ -592,15 +596,14 @@ function changepass() {
 			header('Refresh: 3;URL=./?admin');
 			return '<b>Error</b>: Invalid security token, please try again.';
 		}
-		$username = $_SESSION['username'];
 		$pass = $_POST['pass'];
 		$passchk = $_POST['passchk'];
 		if ($pass == $passchk) {
 			//if the password is not alphanumeric, is made of spaces or is not between 6 and 20 characters in length, error out
 			if (preg_match("/^[a-zA-Z0-9]+$/",$pass)&&!trim($pass)==''&&!(strlen($pass)<6||strlen($pass)>20)) {
-				$pass = db_escape(User::hashPassword($pass));
-				$sql = "UPDATE qdbusers SET password = '".$pass."' WHERE username = '".$username."' LIMIT 1;";
-				db_connect_query($sql);
+				$userid = (int) $_SESSION['userid'];
+				$pass = User::hashPassword($pass);
+				db_prepared_query("UPDATE qdbusers SET password = ? WHERE userid = ? LIMIT 1", 'si', array($pass, $userid));
 				setcookie(COOKIE_NAME, "", array(
 					'expires' => time() - 100,
 					'path' => COOKIE_PATH,
@@ -678,15 +681,15 @@ function adduser() {
 				header('Refresh: 3;URL=./?admin');
 				return '<b>Error</b>: Invalid security token, please try again.';
 			}
-			$nUSER = $_POST['newuser'];
+			$nUSER = trim($_POST['newuser']);
 			$nPASSWORD = 'password';
-			$nEMAIL = $_POST['email'];
-			$nISADMIN = $_POST['isadmin'];
-			if(empty($_POST['newuser'])){
+			$nEMAIL = trim($_POST['email']);
+			$nISADMIN = isset($_POST['isadmin']) && (int) $_POST['isadmin'] === 1 ? 1 : 0;
+			if($nUSER === ''){
 				header('Refresh: 3;URL=./?admin');
 				return '<b>Error</b>: No Username Set';
 			}
-			elseif(empty($_POST['email'])){
+			elseif($nEMAIL === ''){
 				header('Refresh: 3;URL=./?admin');
 				return '<b>Error</b>: No Email Set';
 			}
@@ -756,11 +759,10 @@ function admin_news() {
 				$return_string .= '<p><b>Error</b>: Invalid security token, please try again.</p>';
 			}
 			else if ($_POST['content'] != '') {
-				$postid = @$_POST['selnews'];
-				$owner = @$_SESSION['userid'];
+				$owner = (int) $_SESSION['userid'];
 				$time = date("Y\-m\-d");
-				$post = db_escape(qdb_text_to_html(mquotes($_POST['content'])));
-				db_connect_query("INSERT INTO qdbnews (postdate,post,userid) VALUES ('$time','$post','$owner');");
+				$post = qdb_text_to_html(mquotes($_POST['content']));
+				db_prepared_query("INSERT INTO qdbnews (postdate,post,userid) VALUES (?, ?, ?)", 'ssi', array($time, $post, $owner));
 			}
 		}
 		else if(isset($_POST['post_edit'])) {
@@ -768,17 +770,16 @@ function admin_news() {
 				$return_string .= '<p><b>Error</b>: Invalid security token, please try again.</p>';
 			}
 			else {
-				$postid = @$_POST['selnews'];
-				$time = date("Y\-m\-d");
-				$post = db_escape(qdb_text_to_html(mquotes($_POST['content'])));
-				db_connect_query("UPDATE qdbnews SET post = '".$post."' WHERE postid ='".$postid."';");
+				$postid = (int) @$_POST['selnews'];
+				$post = qdb_text_to_html(mquotes($_POST['content']));
+				db_prepared_query("UPDATE qdbnews SET post = ? WHERE postid = ?", 'si', array($post, $postid));
 			}
 		}
 	}
 
 	$return_string .= "<br /><fieldset id='news'><legend>News <a href='#top' >[Top]</a></legend><form name='news' action='./?admin' method='post'>".qdb_csrf_hidden_input()."<select name='selnews' onchange='javascript: document.news.submit()'>";
 
-	$result = db_connect_query("SELECT * FROM qdbnews");
+	$result = db_prepared_query("SELECT * FROM qdbnews ORDER BY postid DESC");
 
 	while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
 		if (isset($_POST['selnews'])) {

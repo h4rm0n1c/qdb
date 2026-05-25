@@ -61,7 +61,59 @@ class DbConnector {
 			return $result;
 		}
 	}
-	
+
+	public function preparedQuery($query, $types = '', $params = array()) {
+		$this->theQuery = $query;
+		$stmt = mysqli_prepare(self::$link, $query);
+
+		if($stmt === false) {
+			trigger_error("MySQL Prepare error: " . mysqli_error(self::$link));
+			return false;
+		}
+
+		if($types !== '') {
+			if(strlen($types) !== count($params)) {
+				mysqli_stmt_close($stmt);
+				trigger_error("MySQL Prepare error: parameter count does not match type string");
+				return false;
+			}
+
+			$bind_args = array($types);
+			foreach($params as $key => $value) {
+				$bind_args[] = &$params[$key];
+			}
+
+			if(!call_user_func_array(array($stmt, 'bind_param'), $bind_args)) {
+				$error = mysqli_stmt_error($stmt);
+				mysqli_stmt_close($stmt);
+				trigger_error("MySQL Bind error: " . $error);
+				return false;
+			}
+		}
+
+		if(!mysqli_stmt_execute($stmt)) {
+			$error = mysqli_stmt_error($stmt);
+			mysqli_stmt_close($stmt);
+			trigger_error("MySQL Execute error: " . $error);
+			return false;
+		}
+
+		if(mysqli_stmt_field_count($stmt) > 0) {
+			$result = mysqli_stmt_get_result($stmt);
+			if($result === false) {
+				$error = mysqli_stmt_error($stmt);
+				mysqli_stmt_close($stmt);
+				trigger_error("MySQL Result error: " . $error);
+				return false;
+			}
+			mysqli_stmt_close($stmt);
+			return $result;
+		}
+
+		mysqli_stmt_close($stmt);
+		return true;
+	}
+
 	private function queryf_callback($match) {
 		switch ($match[1]) {
 			case '%d': //Decimal Integer
