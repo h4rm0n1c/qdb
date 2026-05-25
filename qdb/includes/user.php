@@ -20,18 +20,22 @@ class User {
 
 	//Load user row from database based on uid
 	public function loadUser() {
-		$result = self::$db->query("SELECT * FROM qdbusers WHERE userid = '".$this->userid."'");
+		return $this->loadUserById($this->userid);
+	}
+
+	public function loadUserById($userid) {
+		$userid = (int) $userid;
+		if ($userid < 1) {
+			return false;
+		}
+
+		$result = self::$db->queryf("SELECT userid, username, `password`, email, isadmin FROM qdbusers WHERE userid = '%d' LIMIT 1", $userid);
 		if(self::$db->getNumRows($result) < 1) {
 			return false;
 		}
 
 		$array = self::$db->fetchArray($result);
-
-		$this->userid = $array['userid'];
-		$this->username = $array['username'];
-		$this->password = $array['password'];
-		$this->email = $array['email'];
-		$this->isadmin = $array['isadmin'];
+		$this->loadUserFromRow($array);
 		return true;
 	}
 

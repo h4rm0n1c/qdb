@@ -36,6 +36,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 - Slice 1: authentication, sessions, and local configuration.
 - Slice 2A: `qdb/vote.php` admin moderation actions `approve`, `reject`, `kill`, and `unflag` now require POST and a valid CSRF token. `qdb/includes/library.php::do_admin()` now uses an explicit action map instead of a dynamic function name.
 - Slice 2B: `qdb/common.php` admin forms for change password, add user, and news post/edit now include hidden CSRF tokens and validate them before mutating state.
+- Session follow-up: existing admin sessions are now validated by `userid` lookup instead of storing and rechecking password hashes in `$_SESSION`.
 
 ## Recommended patch slices
 

@@ -90,8 +90,15 @@ class Sentinel {
 
 	public function authenticate($user = '', $pass = '') {
 		//if user is logged in
-		if (isset($_SESSION['username']) && isset($_SESSION['password']) && $user == '' && $pass == '') {
-			if(self::$user->lookupUser($_SESSION['username'], $_SESSION['password'])) {
+		if ($user == '' && $pass == '') {
+			if(isset($_SESSION['password'])) {
+				unset($_SESSION['password']);
+			}
+
+			if(isset($_SESSION['userid']) && self::$user->loadUserById($_SESSION['userid'])) {
+				$_SESSION['userid'] = self::$user->userid;
+				$_SESSION['username'] = self::$user->username;
+				$_SESSION['isadmin'] = self::$user->isadmin;
 				self::$loggedin = true;
 				return true;
 			}
@@ -103,9 +110,11 @@ class Sentinel {
 			//look up user in database and set session vars if authentic
 			if(self::$user->authenticatePassword($user, $pass)) {
 				session_regenerate_id(true);
+				if(isset($_SESSION['password'])) {
+					unset($_SESSION['password']);
+				}
 				$_SESSION['userid'] = self::$user->userid;
 				$_SESSION['username'] = self::$user->username;
-				$_SESSION['password'] = self::$user->password;
 				$_SESSION['isadmin'] = self::$user->isadmin;
 				self::$loggedin = true;
 				return true;
