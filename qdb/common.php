@@ -121,21 +121,21 @@ function isquotepending($id) {
 
 //Returns the number of approved quotes (Approved field is set to 1)
 function count_approved() {
-	$result = db_connect_query("SELECT COUNT(id) AS count FROM qdb WHERE approved = 1");
+	$result = db_prepared_query("SELECT COUNT(*) AS count FROM qdb WHERE approved = 1");
 	$row = mysqli_fetch_assoc($result);
 	return $row['count'];
 }
 
 //Returns the number of pending quotes (Approved field is set to 0)
 function count_pending() {
-	$result = db_connect_query("SELECT COUNT(id) AS count FROM qdb WHERE approved = 0");
+	$result = db_prepared_query("SELECT COUNT(*) AS count FROM qdb WHERE approved = 0");
 	$row = mysqli_fetch_assoc($result);
 	return $row['count'];
 }
 
 //Returns the average score of approved quotes (karma)
 function count_karma() {
-	$result = db_connect_query("SELECT AVG(rating) AS avg_rating FROM qdb WHERE approved = 1");
+	$result = db_prepared_query("SELECT AVG(`rating`) AS avg_rating FROM qdb WHERE approved = 1");
 	$row = mysqli_fetch_assoc($result);
 	return $row['avg_rating'];
 }
@@ -582,10 +582,10 @@ function admin_pending() {
 	$return_string = '<br />
 		<fieldset id="pending">
 		<legend>Pending Quotes <a href="#top" >[Top]</a></legend>
+		<p>Showing up to 50 pending quotes.</p>
 		<div style="max-height: 400px; overflow: auto; border: 1px solid #000000; margin-bottom: 10px; padding: 5px;">
 	';
-	$adminid = $_SESSION['userid'];
-	$result = db_connect_query("SELECT * FROM qdb WHERE approved = 0 "); //AND modid = '$adminid'
+	$result = db_prepared_query("SELECT * FROM qdb WHERE approved = 0 ORDER BY id ASC LIMIT 50");
 
 	while ( $row = mysqli_fetch_array($result, MYSQLI_ASSOC) ) {
 		$return_string .= '<div id="pending_'.$row['id'].'" class="pending"><p class="quote"><b>#'.$row['id'].'</b>&nbsp;('.$row['rating'].')&nbsp;<a href="#" onclick="return approve('.$row['id'].');" class="qa">[Approve]</a>&nbsp;<a href="#" onclick="return reject('.$row['id'].');" class="qa">[Reject]</a>';
@@ -885,23 +885,23 @@ function manageusers() {
 //This function is used on the home page under the news column
 function listadmins() {
 	$return_string = "<table valign='bottom'><tr><td>";
-	$admin = db_connect_query("SELECT email, username FROM qdbusers WHERE isadmin = 1");
+	$admin = db_prepared_query("SELECT email, username FROM qdbusers WHERE enabled = 1 AND isadmin = 1 ORDER BY userid ASC");
 	if(mysqli_num_rows($admin) > 0) {
 		$return_string .= "Administrators: ";
-		
+
 		while ($row = mysqli_fetch_array($admin, MYSQLI_ASSOC)) {
-			$return_string .= '<a href="mailto:'.$row['email'].'">'.$row['username'].'</a> ';
+			$return_string .= '<a href="'.qdb_h('mailto:'.$row['email']).'">'.qdb_h($row['username']).'</a> ';
 		}
 		$return_string .= '<br />';
 	}
 	mysqli_free_result($admin);
 
-	$mods = db_connect_query("SELECT email, username FROM qdbusers WHERE isadmin != 1");
+	$mods = db_prepared_query("SELECT email, username FROM qdbusers WHERE enabled = 1 AND isadmin != 1 ORDER BY userid ASC");
 	if(mysqli_num_rows($mods) > 0) {
 		$return_string .= "Moderators: ";
-	
+
 		while ($row = mysqli_fetch_array($mods, MYSQLI_ASSOC)) {
-			$return_string .= '<a href="mailto:'.$row['email'].'">'.$row['username'].'</a>';
+			$return_string .= '<a href="'.qdb_h('mailto:'.$row['email']).'">'.qdb_h($row['username']).'</a>';
 		}
 		$return_string .= '<br />';
 	}
@@ -915,13 +915,24 @@ function listadmins() {
 //Returns the latest 3 news posts as a html formatted string
 function news() {
 	$return_string = "";
-	$sql = "SELECT qdbnews.postdate, qdbnews.post, qdbusers.username FROM qdbnews, qdbusers WHERE (qdbnews.userid = qdbusers.userid) ORDER BY postid DESC LIMIT 3";
-	$result = db_connect_query($sql);
+	$sql = "SELECT qdbnews.postdate, qdbnews.post, qdbusers.username
+		FROM qdbnews
+		INNER JOIN qdbusers ON qdbnews.userid = qdbusers.userid
+		ORDER BY qdbnews.postid DESC
+		LIMIT 3";
+	$result = db_prepared_query($sql);
 	while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
 		$return_string .= '<div class="news">';
-		$postdate = explode('-', $row['postdate']);
+		$postdate = (string) $row['postdate'];
+		if(preg_match('/^\d{4}-\d{2}-\d{2}$/', $postdate)) {
+			$postdate = explode('-', $postdate);
+			$postdate = $postdate[2].'-'.$postdate[1].'-'.$postdate[0];
+		}
+		else {
+			$postdate = qdb_h($postdate);
+		}
 
-		$return_string .= '<b>'.$postdate[2].'-'.$postdate[1].'-'.$postdate[0].'</b> By: '.$row['username'].'<br /><p>'.qdb_render_legacy_html($row['post']).'</p></div>';
+		$return_string .= '<b>'.$postdate.'</b> By: '.qdb_h($row['username']).'<br /><p>'.qdb_render_legacy_html($row['post']).'</p></div>';
 	}
 	mysqli_free_result($result);
 
