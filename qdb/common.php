@@ -755,44 +755,60 @@ function adduser() {
 	}
 }
 
-function admin_manageusers($message = '', $is_error = false) {
+function admin_manageusers($message = '', $is_error = false, $selected_userid = 0) {
 	if(!checklogin() || !issuperadmin()) {
 		return '';
 	}
 
 	$users = Sentinel::$user->getAllUsers();
+	$selected_userid = (int) $selected_userid;
+	$selected_user = $selected_userid > 0 ? Sentinel::$user->getUserById($selected_userid) : false;
 	$return_string = '<br /><fieldset id="manageusers"><legend>Manage Users <a href="#top" >[Top]</a></legend>';
 	if($message !== '') {
 		$return_string .= '<p>'.($is_error ? '<b>Error</b>: ' : '').qdb_h($message).'</p>';
 	}
 	$return_string .= '<p>No delete action is available. Disable an account to retire it.</p>';
-	$return_string .= '<form action="./?manageusers" method="post">'.qdb_csrf_hidden_input();
+	$return_string .= '<form action="./?manageusers" method="post">'.qdb_csrf_hidden_input().'<table cellpadding="2" cellspacing="0">
+		<tr>
+			<td align="right">User:</td>
+			<td><select name="selected_user">';
 
 	foreach($users as $userrow) {
 		$userid = (int) $userrow['userid'];
-		$isadmin = (int) $userrow['isadmin'];
-		$enabled = (int) $userrow['enabled'];
+		$return_string .= '<option value="'.$userid.'"'.($userid === $selected_userid ? ' selected' : '').'>#'.$userid.' '.qdb_h($userrow['username']).'</option>';
+	}
+
+	$return_string .= '</select></td>
+			<td><button type="submit" name="load_user" class="basicsubmit" value="1">Load User</button></td>
+		</tr>
+	</table></form>';
+
+	if($selected_user !== false) {
+		$userid = (int) $selected_user['userid'];
+		$isadmin = (int) $selected_user['isadmin'];
+		$enabled = (int) $selected_user['enabled'];
+		$return_string .= '<form action="./?manageusers" method="post">'.qdb_csrf_hidden_input().'<input type="hidden" name="selected_user" value="'.$userid.'">';
 		$return_string .= '<div class="user-admin-card">';
 		$return_string .= '<b>User #'.$userid.'</b>';
 		$return_string .= '<table cellpadding="2" cellspacing="0">';
-		$return_string .= '<tr><td align="right">Username:</td><td><input type="text" name="username['.$userid.']" size="24" class="basicinput" value="'.qdb_h($userrow['username']).'"></td></tr>';
-		$return_string .= '<tr><td align="right">Email:</td><td><input type="text" name="email['.$userid.']" size="32" class="basicinput" value="'.qdb_h($userrow['email']).'"></td></tr>';
+		$return_string .= '<tr><td align="right">Username:</td><td><input type="text" name="username" size="24" class="basicinput" value="'.qdb_h($selected_user['username']).'"></td></tr>';
+		$return_string .= '<tr><td align="right">Email:</td><td><input type="text" name="email" size="32" class="basicinput" value="'.qdb_h($selected_user['email']).'"></td></tr>';
 		if($userid === 1) {
-			$return_string .= '<tr><td align="right">Admin:</td><td>Yes<input type="hidden" name="isadmin['.$userid.']" value="1"></td></tr>';
-			$return_string .= '<tr><td align="right">Enabled:</td><td>Yes<input type="hidden" name="enabled['.$userid.']" value="1"></td></tr>';
+			$return_string .= '<tr><td align="right">Admin:</td><td>Yes<input type="hidden" name="isadmin" value="1"></td></tr>';
+			$return_string .= '<tr><td align="right">Enabled:</td><td>Yes<input type="hidden" name="enabled" value="1"></td></tr>';
 		}
 		else {
-			$return_string .= '<tr><td align="right">Admin:</td><td><select name="isadmin['.$userid.']"><option value="0"'.($isadmin === 0 ? ' selected' : '').'>No</option><option value="1"'.($isadmin === 1 ? ' selected' : '').'>Yes</option></select></td></tr>';
-			$return_string .= '<tr><td align="right">Enabled:</td><td><select name="enabled['.$userid.']"><option value="0"'.($enabled === 0 ? ' selected' : '').'>No</option><option value="1"'.($enabled === 1 ? ' selected' : '').'>Yes</option></select></td></tr>';
+			$return_string .= '<tr><td align="right">Admin:</td><td><select name="isadmin"><option value="0"'.($isadmin === 0 ? ' selected' : '').'>No</option><option value="1"'.($isadmin === 1 ? ' selected' : '').'>Yes</option></select></td></tr>';
+			$return_string .= '<tr><td align="right">Enabled:</td><td><select name="enabled"><option value="0"'.($enabled === 0 ? ' selected' : '').'>No</option><option value="1"'.($enabled === 1 ? ' selected' : '').'>Yes</option></select></td></tr>';
 		}
-		$return_string .= '<tr><td align="right">Reset temporary password:</td><td><input type="password" name="resetpass['.$userid.']" size="24" class="basicinput"></td></tr>';
-		$return_string .= '<tr><td align="right">Repeat temporary password:</td><td><input type="password" name="resetpasschk['.$userid.']" size="24" class="basicinput"></td></tr>';
+		$return_string .= '<tr><td align="right">Reset temporary password:</td><td><input type="password" name="resetpass" size="24" class="basicinput"></td></tr>';
+		$return_string .= '<tr><td align="right">Repeat temporary password:</td><td><input type="password" name="resetpasschk" size="24" class="basicinput"></td></tr>';
 		$return_string .= '<tr><td></td><td><button type="submit" name="save_user" class="basicsubmit" value="'.$userid.'">Save</button></td></tr>';
 		$return_string .= '</table>';
-		$return_string .= '</div>';
+		$return_string .= '</div></form>';
 	}
 
-	$return_string .= '</form></fieldset>';
+	$return_string .= '</fieldset>';
 	return $return_string;
 }
 
@@ -802,7 +818,7 @@ function manageusers() {
 		return 'Stop trying to hack, you suck.';
 	}
 
-	if(!isset($_POST['save_user'])) {
+	if(!isset($_POST['save_user']) && !isset($_POST['load_user'])) {
 		return admin_manageusers();
 	}
 
@@ -810,40 +826,48 @@ function manageusers() {
 		return admin_manageusers('Invalid security token, please try again.', true);
 	}
 
+	if(isset($_POST['load_user'])) {
+		$selected_userid = isset($_POST['selected_user']) ? (int) $_POST['selected_user'] : 0;
+		if($selected_userid < 1 || Sentinel::$user->getUserById($selected_userid) === false) {
+			return admin_manageusers('User not found.', true);
+		}
+		return admin_manageusers('', false, $selected_userid);
+	}
+
 	$userid = isset($_POST['save_user']) ? (int) $_POST['save_user'] : 0;
-	$username = isset($_POST['username'][$userid]) ? trim($_POST['username'][$userid]) : '';
-	$email = isset($_POST['email'][$userid]) ? trim($_POST['email'][$userid]) : '';
-	$isadmin = isset($_POST['isadmin'][$userid]) && (int) $_POST['isadmin'][$userid] === 1 ? 1 : 0;
-	$enabled = isset($_POST['enabled'][$userid]) && (int) $_POST['enabled'][$userid] === 1 ? 1 : 0;
-	$resetpass = isset($_POST['resetpass'][$userid]) ? $_POST['resetpass'][$userid] : '';
-	$resetpasschk = isset($_POST['resetpasschk'][$userid]) ? $_POST['resetpasschk'][$userid] : '';
+	$username = isset($_POST['username']) ? trim($_POST['username']) : '';
+	$email = isset($_POST['email']) ? trim($_POST['email']) : '';
+	$isadmin = isset($_POST['isadmin']) && (int) $_POST['isadmin'] === 1 ? 1 : 0;
+	$enabled = isset($_POST['enabled']) && (int) $_POST['enabled'] === 1 ? 1 : 0;
+	$resetpass = isset($_POST['resetpass']) ? $_POST['resetpass'] : '';
+	$resetpasschk = isset($_POST['resetpasschk']) ? $_POST['resetpasschk'] : '';
 
 	if($userid < 1 || Sentinel::$user->getUserById($userid) === false) {
 		return admin_manageusers('User not found.', true);
 	}
 	if($userid === 1 && ($isadmin !== 1 || $enabled !== 1)) {
-		return admin_manageusers('The bootstrap super-admin cannot be demoted or disabled.', true);
+		return admin_manageusers('The bootstrap super-admin cannot be demoted or disabled.', true, $userid);
 	}
 	if($username === '') {
-		return admin_manageusers('Username is required.', true);
+		return admin_manageusers('Username is required.', true, $userid);
 	}
 	if($email === '') {
-		return admin_manageusers('Email is required.', true);
+		return admin_manageusers('Email is required.', true, $userid);
 	}
 	if(Sentinel::$user->unameExists($username, $userid)) {
-		return admin_manageusers('Username already exists.', true);
+		return admin_manageusers('Username already exists.', true, $userid);
 	}
 	if(($resetpass !== '' || $resetpasschk !== '') && ($resetpass === '' || $resetpasschk === '')) {
-		return admin_manageusers('Both temporary password fields are required when resetting a password.', true);
+		return admin_manageusers('Both temporary password fields are required when resetting a password.', true, $userid);
 	}
 	if($resetpass !== '' && $resetpass !== $resetpasschk) {
-		return admin_manageusers('Temporary passwords entered do not match each-other.', true);
+		return admin_manageusers('Temporary passwords entered do not match each-other.', true, $userid);
 	}
 	if($resetpass !== '' && (strlen($resetpass) < 8 || strlen($resetpass) > 128)) {
-		return admin_manageusers('Temporary password must be between 8 and 128 characters long.', true);
+		return admin_manageusers('Temporary password must be between 8 and 128 characters long.', true, $userid);
 	}
 	if($userid === 1 && (int) $_SESSION['userid'] !== 1) {
-		return admin_manageusers('Only the bootstrap super-admin can reset the bootstrap super-admin password.', true);
+		return admin_manageusers('Only the bootstrap super-admin can reset the bootstrap super-admin password.', true, $userid);
 	}
 
 	Sentinel::$user->updateUser($username, '', $email, $isadmin, $userid, $enabled);
@@ -851,7 +875,7 @@ function manageusers() {
 		Sentinel::$user->resetPassword($userid, $resetpass);
 	}
 
-	return admin_manageusers('User updated successfully.');
+	return admin_manageusers('User updated successfully.', false, $userid);
 }
 
 //List the administrators and the moderators (the administrator has a userid of 1, same thing as the "super-admin")
