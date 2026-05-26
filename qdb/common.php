@@ -766,39 +766,33 @@ function admin_manageusers($message = '', $is_error = false) {
 		$return_string .= '<p>'.($is_error ? '<b>Error</b>: ' : '').qdb_h($message).'</p>';
 	}
 	$return_string .= '<p>No delete action is available. Disable an account to retire it.</p>';
-	$return_string .= '<form action="./?manageusers" method="post">'.qdb_csrf_hidden_input().'<table width="100%" cellpadding="3" cellspacing="0" border="1">
-		<tr>
-			<th>User ID</th>
-			<th>Username</th>
-			<th>Email</th>
-			<th>Admin</th>
-			<th>Enabled</th>
-			<th>Reset Password</th>
-			<th>Actions</th>
-		</tr>';
+	$return_string .= '<form action="./?manageusers" method="post">'.qdb_csrf_hidden_input();
 
 	foreach($users as $userrow) {
 		$userid = (int) $userrow['userid'];
 		$isadmin = (int) $userrow['isadmin'];
 		$enabled = (int) $userrow['enabled'];
-		$return_string .= '<tr>';
-		$return_string .= '<td>'.$userid.'</td>';
-		$return_string .= '<td><input type="text" name="username['.$userid.']" size="16" class="basicinput" value="'.qdb_h($userrow['username']).'"></td>';
-		$return_string .= '<td><input type="text" name="email['.$userid.']" size="28" class="basicinput" value="'.qdb_h($userrow['email']).'"></td>';
+		$return_string .= '<div class="user-admin-card">';
+		$return_string .= '<b>User #'.$userid.'</b>';
+		$return_string .= '<table cellpadding="2" cellspacing="0">';
+		$return_string .= '<tr><td align="right">Username:</td><td><input type="text" name="username['.$userid.']" size="24" class="basicinput" value="'.qdb_h($userrow['username']).'"></td></tr>';
+		$return_string .= '<tr><td align="right">Email:</td><td><input type="text" name="email['.$userid.']" size="32" class="basicinput" value="'.qdb_h($userrow['email']).'"></td></tr>';
 		if($userid === 1) {
-			$return_string .= '<td>Yes<input type="hidden" name="isadmin['.$userid.']" value="1"></td>';
-			$return_string .= '<td>Yes<input type="hidden" name="enabled['.$userid.']" value="1"></td>';
+			$return_string .= '<tr><td align="right">Admin:</td><td>Yes<input type="hidden" name="isadmin['.$userid.']" value="1"></td></tr>';
+			$return_string .= '<tr><td align="right">Enabled:</td><td>Yes<input type="hidden" name="enabled['.$userid.']" value="1"></td></tr>';
 		}
 		else {
-			$return_string .= '<td><select name="isadmin['.$userid.']"><option value="0"'.($isadmin === 0 ? ' selected' : '').'>No</option><option value="1"'.($isadmin === 1 ? ' selected' : '').'>Yes</option></select></td>';
-			$return_string .= '<td><select name="enabled['.$userid.']"><option value="0"'.($enabled === 0 ? ' selected' : '').'>No</option><option value="1"'.($enabled === 1 ? ' selected' : '').'>Yes</option></select></td>';
+			$return_string .= '<tr><td align="right">Admin:</td><td><select name="isadmin['.$userid.']"><option value="0"'.($isadmin === 0 ? ' selected' : '').'>No</option><option value="1"'.($isadmin === 1 ? ' selected' : '').'>Yes</option></select></td></tr>';
+			$return_string .= '<tr><td align="right">Enabled:</td><td><select name="enabled['.$userid.']"><option value="0"'.($enabled === 0 ? ' selected' : '').'>No</option><option value="1"'.($enabled === 1 ? ' selected' : '').'>Yes</option></select></td></tr>';
 		}
-		$return_string .= '<td>Temporary: <input type="password" name="resetpass['.$userid.']" size="14" class="basicinput"><br />Repeat: <input type="password" name="resetpasschk['.$userid.']" size="14" class="basicinput"></td>';
-		$return_string .= '<td><button type="submit" name="save_user" class="basicsubmit" value="'.$userid.'">Save</button></td>';
-		$return_string .= '</tr>';
+		$return_string .= '<tr><td align="right">Reset temporary password:</td><td><input type="password" name="resetpass['.$userid.']" size="24" class="basicinput"></td></tr>';
+		$return_string .= '<tr><td align="right">Repeat temporary password:</td><td><input type="password" name="resetpasschk['.$userid.']" size="24" class="basicinput"></td></tr>';
+		$return_string .= '<tr><td></td><td><button type="submit" name="save_user" class="basicsubmit" value="'.$userid.'">Save</button></td></tr>';
+		$return_string .= '</table>';
+		$return_string .= '</div>';
 	}
 
-	$return_string .= '</table></form></fieldset>';
+	$return_string .= '</form></fieldset>';
 	return $return_string;
 }
 

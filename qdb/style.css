@@ -144,3 +144,18 @@ margin-top: 0;
 margin-left: 15px;
 margin-top:0;
 }
+
+.user-admin-card {
+border: 1px solid #000000;
+margin-bottom: 8px;
+padding: 5px;
+max-width: 520px;
+}
+
+.user-admin-card table {
+width: 100%;
+}
+
+.user-admin-card input.basicinput {
+max-width: 100%;
+}
