@@ -78,11 +78,6 @@ $return_string .= '</p>
 	}
 }
 
-//Execute supplied query and return HTMLised Quote(s)
-function format_quote($quote_sql) {
-	return format_quote_result(db_connect_query($quote_sql));
-}
-
 function qdb_normalize_search_term($value, &$error) {
 	$term = trim(mquotes((string) $value));
 	$term = preg_replace('/\s+/', ' ', $term);
@@ -224,21 +219,6 @@ function add() {
 
 //Handles the data submitted by the add quote page
 function added() {
-	/*if (!isset($_COOKIE['add_quote'])) {
-		$qQUOTE = empty($_POST['quote']) ? die ("Error: Enter a Quote") : mysql_escape_string(nl2br(htmlentities(mquotes($_POST['quote']))));
-		$comment = mysql_escape_string(nl2br(htmlentities(mquotes($_POST['comment']))));
-		$sql = "INSERT INTO qdb (quote,rating,approved,comment) VALUES ('$qQUOTE',0,0,'$comment')";
-		$crap = db_connect_query($sql);
-
-		setcookie ("add_quote", "1",time()+(120));
-		header("Refresh: 4; URL=./");
-
-		return 'Thanks, your quote has been submitted. The quote you submitted was: <br /><br /><p class="qt">'.nl2br(htmlentities(mquotes($_POST['quote']))).'</p>Thank you.';
-	}
-	else {
-		header("Refresh: 3; URL=./");
-		return "Sorry, but you will have to wait 2 minutes at the most before you can submit again.";
-	}*/
 	return "Sorry! Add Quote Functionality has been disabled, since this database is only meant to be added to by the bash dumper script!";
 }
 

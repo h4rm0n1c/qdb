@@ -47,6 +47,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 - User lifecycle slice A: `docs/user-lifecycle.md` documents the non-public-registration account lifecycle. `qdb/includes/user.php` account lookup/mutation methods now use prepared statements, `enabled=0` users are refused during login/session reload, and invited-user creation now requires a super-admin-provided temporary password instead of a fixed default.
 - User lifecycle slice B: `qdb/common.php` now includes a super-admin-only Manage Users panel for viewing/editing existing users, toggling `isadmin`/`enabled`, and resetting passwords to temporary values. `userid=1` cannot be disabled or demoted, and no delete action was added.
 - Common static/admin-list cleanup: `qdb/common.php` count helpers, news listing, and admin/mod list queries now use prepared/static safe query style. Public admin/mod usernames and mailto attributes are escaped, and the pending moderation panel query is ordered and capped at 50 rows.
+- Remaining SQL audit: no unsafe app-level string-built SQL or `queryf()` call sites remain in `qdb/common.php`, `qdb/includes/user.php`, or `qdb/includes/library.php`. The unused generic `format_quote($quote_sql)` helper and commented legacy add-quote SQL block were removed. Remaining grep hits are prepared statements, `DbConnector` internals, or static-safe query construction from whitelisted values, including `qdb/common.php::search()` order/sort/limit fragments and `User::getAllUsers()` static select variants.
 
 ## Recommended patch slices
 
@@ -55,7 +56,7 @@ This is a legacy LAN-only PHP quote database. It is provisionally functional on 
 3. Review public vote abuse/rate limiting and whether public voting should require CSRF or another anti-automation control.
 4. Partially completed: explicit output rendering helpers and transitional news escaping are in place. Full DB content normalization remains deferred.
 5. Completed: retire `qdb/dumper/index.php` and use CLI-only import tooling.
-6. Partially completed: admin mutation SQL cleanup slice 1, vote/library SQL cleanup slice 2, search SQL cleanup, quote listing SQL cleanup slice 3, common static/news/admin-list cleanup, and User class SQL cleanup are done. Remaining SQL targets include any remaining direct string-built SQL found by grep.
+6. Completed for app-level web paths: admin mutation SQL cleanup slice 1, vote/library SQL cleanup slice 2, search SQL cleanup, quote listing SQL cleanup slice 3, common static/news/admin-list cleanup, User class SQL cleanup, and remaining SQL grep audit are done. Remaining SQL grep hits are static safe, prepared statements, or DB abstraction internals.
 7. Moderation queue pagination and cleanup of mod assignment semantics.
 8. Performance follow-up: consider pagination for search/browse/mod queues and optional index review beyond the existing `qdb.quote` FULLTEXT index.
 9. Partially completed: Manage Users UI exists for the bootstrap super-admin, including disabled-user controls and password reset. Deferred user lifecycle items include optional audit logging, optional forced password reset flag, and an account retirement policy beyond `enabled=0`.
